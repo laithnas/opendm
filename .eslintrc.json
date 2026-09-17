@@ -1,0 +1,15 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "@next/next/no-html-link-for-pages": "off",
+    "react/no-unescaped-entities": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/app/app/**/*.tsx", "src/app/login/**/*.tsx", "src/app/onboarding/**/*.tsx"],
+      "rules": {
+        "react-hooks/exhaustive-deps": "off"
+      }
+    }
+  ]
+}

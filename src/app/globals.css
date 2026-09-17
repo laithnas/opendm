@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-canvas-light text-ink-light dark:bg-canvas-dark dark:text-ink-dark;
+    font-feature-settings: "ss01", "cv11";
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-canvas-light dark:ring-offset-canvas-dark;
+  }
+  ::selection {
+    @apply bg-accent/15 text-inherit;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line-light bg-surface-light shadow-card dark:border-line-dark dark:bg-surface-dark;
+  }
+  .card-pad {
+    @apply p-5;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-dark;
+  }
+  .btn-secondary {
+    @apply btn border border-line-light bg-surface-light text-ink-light hover:bg-canvas-light dark:border-line-dark dark:bg-surface-dark dark:text-ink-dark dark:hover:bg-canvas-dark;
+  }
+  .btn-ghost {
+    @apply btn text-muted-light hover:bg-black/5 hover:text-ink-light dark:text-muted-dark dark:hover:bg-white/5 dark:hover:text-ink-dark;
+  }
+  .btn-danger {
+    @apply btn border border-accent/30 bg-accent/10 text-accent hover:bg-accent/15;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line-light bg-surface-light px-3 py-2 text-sm text-ink-light placeholder:text-muted-light focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-line-dark dark:bg-surface-dark dark:text-ink-dark dark:placeholder:text-muted-dark;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-light dark:text-muted-dark;
+  }
+  .kpi {
+    @apply text-3xl font-bold tabular-nums tracking-tight;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold;
+  }
+  .table-base {
+    @apply w-full text-left text-sm;
+  }
+  .table-base th {
+    @apply border-b border-line-light px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-light dark:border-line-dark dark:text-muted-dark;
+  }
+  .table-base td {
+    @apply border-b border-line-light/70 px-4 py-3 dark:border-line-dark/70;
+  }
+  .table-base tr:last-child td {
+    @apply border-b-0;
+  }
+  .table-hover tbody tr {
+    @apply cursor-pointer transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03];
+  }
+}
+
+/* Thin, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 130, 145, 0.35) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(120, 130, 145, 0.35);
+  border-radius: 8px;
+}
+/* Webkit autofill fix */
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px white inset;
+}

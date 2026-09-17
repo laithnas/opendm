@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+_audit
+docs
+*.log
+.env
+.env*.local
+playwright-report
+test-results
+coverage
+README.md
+CONTRIBUTING.md
+SECURITY.md
+CHANGELOG.md
+AGENTS.md
+CLAUDE.md
