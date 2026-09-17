@@ -8,6 +8,10 @@ All notable changes to this project are documented here. Format based on
 
 ### Added
 
+- **`npm run init`** — one-command onboarding: generates `.env` with random
+  secrets, starts Postgres + Redis (docker compose), applies migrations,
+  optional `--seed` demo workspace, prints next steps.
+
 - **Automation engine** — event → conditions → actions pipeline with idempotent,
   observable executions (per-step status, retries, errors, durations).
 - **Visual automation builder** — Trigger → Conditions → Actions with inline

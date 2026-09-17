@@ -12,7 +12,7 @@ export const product = {
   logoUrl: process.env.LOGO_URL?.trim() || "",
   links: {
     site: "https://www.leonyx-ai.com/",
-    github: "https://github.com/leonyx-ai/leonyx-flow",
+    github: "https://github.com/laithnas/leonyx-flow",
   },
 } as const;
 

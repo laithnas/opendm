@@ -9,6 +9,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "init": "tsx scripts/init.ts",
     "dev": "next dev -p 3000",
     "dev:worker": "tsx watch src/worker/index.ts",
     "dev:all": "concurrently -n app,worker -c cyan,magenta \"npm:dev\" \"npm:dev:worker\"",

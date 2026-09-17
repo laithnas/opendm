@@ -6,7 +6,19 @@
 - Docker (PostgreSQL 16, Redis 7) — or any reachable PG/Redis
 - npm ≥ 10
 
-## One-line local environment
+## One-command setup (recommended)
+
+```bash
+git clone https://github.com/laithnas/leonyx-flow
+cd leonyx-flow
+npm install
+npm run init          # .env (random secrets) + Postgres + Redis + migrations
+npm run dev:all       # app on :3000 + worker
+```
+
+`npm run init` is idempotent and supports `--seed` (demo workspace) and
+`--no-docker` (external Postgres/Redis). It never overwrites an existing
+`.env`. Manual steps below for those who prefer them.
 
 ```bash
 cp .env.example .env
