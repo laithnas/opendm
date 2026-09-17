@@ -131,7 +131,7 @@ function waitForServices(timeoutMs = 90_000): void {
 function migrate(): void {
   const dbUrl = envValue("DATABASE_URL") || "postgresql://leonyx:leonyx@localhost:5432/leonyx_flow?schema=public";
   note("Applying migrations (prisma migrate deploy)…");
-  if (!run("npx prisma migrate deploy", { env: { DATABASE_URL: dbUrl } })) {
+  if (!run("npx prisma migrate deploy", { env: { DATABASE_URL: dbUrl, NODE_ENV: "development" } })) {
     fail(
       "Migration failed. Is Postgres reachable at the DATABASE_URL in .env?\n" +
         "  - Docker: ensure Docker Desktop is running, then re-run `npm run init`.\n" +
