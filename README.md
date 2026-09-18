@@ -1,276 +1,286 @@
 # OpenDM
 
-**Open-source social automation OS for creators, agencies and businesses.**
+**Open-source social automation for creators, agencies and businesses.**
 
-Turn Instagram comments, DMs and story replies into workflows you own — visual
-automations (trigger → conditions → actions), unified inbox, mini-CRM,
-tracked links and real analytics. Official Meta APIs only — no scraping, no
-passwords.
+Imagine an assistant that never sleeps. Someone comments `GUIDE` on your
+Instagram post. OpenDM replies publicly, sends your guide by DM, adds the
+person to your contacts with a "Guide Lead" tag, and tracks whether they
+click your link. All of it automatic, all of it yours.
 
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6) ![Next.js](https://img.shields.io/badge/Next.js-14-000000) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1) ![Redis](https://img.shields.io/badge/Redis-7-dc382d) ![Tests](https://img.shields.io/badge/tests-65%20passing-brightgreen) ![License](https://img.shields.io/badge/License-MIT-green)
+> ⚠️ **Status:** v0.1.0. Core flows are tested and working. See the
+> [Roadmap](#roadmap) for what is coming next.
 
-> ⚠️ **Status:** v0.1.0 — core flows tested and runnable. See [Roadmap](#roadmap).
-
----
-
-## Table of contents
-
-- [Why OpenDM](#why)
-- [Features](#features)
-- [Quick start (3 commands)](#quick-start-3-commands)
-- [What `npm run init` does](#what-npm-run-init-does)
-- [Local development](#local-development)
-- [Using the app](#using-the-app)
-- [Meta / Instagram setup](#meta--instagram-setup)
-- [Project structure](#project-structure)
-- [Testing](#testing)
-- [Production deployment](#production-deployment)
-- [Configuration reference](#configuration-reference)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [Roadmap](#roadmap)
-- [License](#license)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)
+![Next.js](https://img.shields.io/badge/Next.js-14-000000)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1)
+![Redis](https://img.shields.io/badge/Redis-7-dc382d)
+![Tests](https://img.shields.io/badge/tests-65%20passing-brightgreen)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
-## Why
+## What is this exactly?
 
-Most comment→DM tools are closed SaaS with per-message pricing and no data
-access. OpenDM is:
+OpenDM is a **social automation operating system** you run yourself.
 
-- **An automation engine, not a hardcoded flow.** Trigger → conditions →
-  actions → delay → next action. New triggers and actions register without
-  touching the core.
-- **Self-hostable.** Your data, your Postgres, your Redis, your worker.
-- **Observable.** Every run is an execution with per-step status, retries,
-  errors and durations.
-- **Integratable.** Export/import automations as portable JSON; fire signed
-  webhooks into n8n, Make, Zapier or your CRM.
-- **Private by design.** Tokens encrypted at rest, no page-scraping, hashed
-  IPs, minimal contact data.
+Most tools like this are paid services. You rent them per message, you have
+no idea how they store your data, and you cannot change how they work.
+OpenDM is the opposite: the whole thing is open source, you run it on your
+own machine (or a $5 server), and you own everything inside it: contacts,
+messages, links, analytics.
+
+It starts with Instagram because that is the classic use case. Someone
+comments, they get a reply and a DM. But underneath it is a general engine:
+**trigger, conditions, actions**. You pick what happens, when it happens,
+and what the system is allowed to do. The engine does not care whether the
+event is a comment, a DM, a story reply, or eventually something from
+Facebook, WhatsApp or TikTok.
+
+## How it works, in plain words
+
+1. Something happens on your Instagram. A comment, a DM, a story reply.
+2. OpenDM checks your automations. Each one is a short recipe: *if this
+   happens, and these conditions are true, do these actions in this order.*
+3. The work is handed to a background worker (a second helper process that
+   does the heavy lifting). The website itself just drops off the work
+   orders and moves on.
+4. Every run is recorded. You can open any execution and see each step:
+   what was sent, when, whether it worked, and if it failed, why.
+
+This design means nothing gets lost when the website restarts. Work waits in
+a to-do tray (the queue) until the worker picks it up.
 
 ## Features
 
 | Area | What you get |
 | --- | --- |
-| **Automations** | Triggers: comment, DM, story reply. Conditions: keywords (any/all, case-sensitive, whole-word), exclusions, specific post, follower gate. Actions: DM, public reply, tracked link, tag contact, webhook, delay. Enable / pause / duplicate / edit / archive / test / export / import. |
-| **Visual builder** | Readable Trigger → Conditions → Actions flow. Inline editors, drag-free reorder, dry-run **Test** before activating, AI draft generation. |
-| **Inbox** | Conversations from DMs + story replies, unread state, search, manual replies with messaging-window rules shown honestly. |
-| **Mini-CRM** | Contacts, tags, notes, engagement timeline, link clicks, campaign history. |
-| **Tracked links** | Non-guessable slugs, clicks + unique clicks, per-campaign CTR, SSRF-safe destinations. |
-| **Analytics** | Triggers, DMs sent/failed, click-through, conversion funnel, top automations, top keywords, account health, date filters. Real numbers, honest empty states. |
-| **AI (optional)** | Message rewrite, campaign generation, automation suggestions, insight summaries (Anthropic / OpenAI / Gemini). Drafts only — never auto-sent. |
-| **Templates** | 10 flows (Comment GUIDE, Comment PRICE, lead magnet, webinar, real estate, restaurant, agency leads, newsletter…) as editable drafts. |
-| **Team** | Workspaces with owner/admin/member roles, invites, full audit log. |
-| **Demo mode** | One-click seeded workspace — explore the whole product without Instagram credentials. |
+| **Automations** | Three triggers to start from: comment, DM, story reply. Conditions like keywords, excluded words, a specific post, or followers only. Actions like sending a DM, replying publicly, sending a tracked link, tagging the person, calling a webhook, or waiting. You can enable, pause, duplicate, edit, archive, test, export and import them. |
+| **Visual builder** | A simple flow you can read in seconds: trigger, conditions, actions. No confusing node editor. A built-in **Test** button shows what would happen before you turn anything on. |
+| **Inbox** | Every conversation in one place. Unread badges, search, replies. If Instagram rules block a reply, OpenDM tells you why instead of failing silently. |
+| **Contacts** | A lightweight customer list. Who commented, who got tagged, what they clicked, what was sent to them. Notes and tags included. |
+| **Tracked links** | Short links that count clicks, unique visitors and click-through rate per campaign. |
+| **Analytics** | Real numbers: triggers, DMs sent, failures, clicks, top automations, top keywords, conversion funnel, account health. Nothing estimated, and empty states look intentional rather than broken. |
+| **AI help (optional)** | Rewrite a message in a friendlier tone, generate a whole campaign from one sentence, get analytics insights. Works with Anthropic, OpenAI or Gemini. AI output is always a draft. Nothing is sent without you approving it. |
+| **Templates** | Ten ready-made flows for common cases: Comment GUIDE, Comment PRICE, lead magnet, webinar, real estate, restaurant, agency leads, newsletter and more. They install as editable drafts. |
+| **Team** | Workspaces with owner, admin and member roles. Invite people by email. Every important action is logged. |
+| **Demo mode** | One click gives you a workspace full of realistic sample data. You can explore everything without connecting Instagram at all. |
 
-## Quick start (3 commands)
+## Quick start (non-technical version)
 
-Requirements: **Node 20+** and **Docker** (for local Postgres + Redis).
+You need two things installed: **Node.js 20 or newer** (a free tool for
+running JavaScript) and **Docker** (a free tool that runs the small
+databases OpenDM uses). Both have simple installers for Mac and Windows.
+
+Then, in a terminal:
 
 ```bash
 git clone https://github.com/laithnas/opendm
-cd leonyx-flow
-npm install && npm run init
-npm run dev:all            # app on http://localhost:3000 + worker, together
-```
-
-That's it — open http://localhost:3000 and click **Explore the demo**
-(or sign in with a magic link, which is printed to the server log until you
-configure email).
-
-Want sample data right away? `npm run init -- --seed` seeds a demo workspace
-with automations, contacts, executions and conversations.
-
-Already running Postgres/Redis elsewhere? `npm run init -- --no-docker`.
-Single-purpose admins: `npm run init -- --seed --no-docker` works too.
-
-## What `npm run init` does
-
-1. **Creates `.env`** from `.env.example` — with *random* `SESSION_SECRET`,
-   `ENCRYPTION_KEY` and `META_VERIFY_TOKEN` generated for you (never reuse
-   the template's placeholders). An existing `.env` is never overwritten.
-2. **Starts PostgreSQL + Redis** (`docker compose up -d`) and waits until
-   both report healthy.
-3. **Applies migrations** (`prisma migrate deploy`) so the schema matches
-   the code.
-4. **Optionally seeds** the demo workspace (`--seed`).
-5. **Prints next steps**: run commands, login URL, Meta/AI env hooks, docs.
-
-The whole flow is idempotent — run it again any time; it only fills in what
-is missing.
-
-## Local development
-
-```bash
-npm run dev:all        # app (:3000) + worker, one command (uses concurrently)
-# or separately:
-npm run dev            # Next.js dev server
-npm run worker         # standalone background worker
-```
-
-**Why a worker?** All automation work (webhook ingestion, DM sending, link
-tracking, webhook deliveries) runs in background queues. The web server only
-enqueues and returns immediately — kill the dev server and queued work
-survives until the worker picks it up.
-
-### The minimal daily loop
-
-```bash
+cd opendm
+npm install
+npm run init -- --seed
 npm run dev:all
-# edit code → app hot-reloads; worker restarts on file changes (tsx watch)
-npm run lint && npm run typecheck && npm run test   # before committing
 ```
 
-### Useful scripts
+Breakdown:
 
-| Script | Purpose |
+- `npm install` downloads the project's parts.
+- `npm run init` sets everything up for you: it creates a `.env` file with
+  secret keys generated just for you, starts the databases, and prepares
+  them. The `--seed` part fills the workspace with sample data.
+- `npm run dev:all` starts the app (a link opens or visit
+  http://localhost:3000) and the background worker together.
+
+Then click **Explore the demo** on the login screen and you are inside.
+Everything on screen is sample data, so you can click around freely.
+
+Already have your own databases running? Use `npm run init -- --no-docker`.
+Want the empty version without sample data? Just drop the `--seed`.
+
+You can run `npm run init` again any time. It only fills in what is
+missing, and it never overwrites an existing `.env`.
+
+## What `npm run init` actually does
+
+1. **Creates `.env`** from `.env.example`, with fresh random secrets for
+   `SESSION_SECRET`, `ENCRYPTION_KEY` and `META_VERIFY_TOKEN`. Never reuse
+   example secrets; this is why the script generates new ones.
+2. **Starts PostgreSQL and Redis** with Docker, and waits until both are
+   healthy. PostgreSQL stores your data; Redis handles the work queue.
+3. **Applies migrations**, which is just a tidy way of saying it brings the
+   database up to date with the code.
+4. **Seeds the demo workspace** when you pass `--seed`.
+5. **Prints what to do next**: start commands, the login URL, and where to
+   add Meta or AI credentials.
+
+## Running the app day to day
+
+```bash
+npm run dev:all        # website plus worker, one command
+```
+
+One command is the normal way. If you prefer them separate:
+
+```bash
+npm run dev            # the website only
+npm run worker         # the background worker only
+```
+
+A few other useful commands:
+
+| Command | What it does |
 | --- | --- |
-| `npm run init` | one-command setup (.env + infra + migrate [+ `--seed`]) |
-| `npm run dev:all` | app + worker together |
-| `npm run worker` | standalone worker process |
-| `npm run db:migrate` | apply committed migrations |
-| `npm run db:migrate:dev` | create a new migration from schema changes |
-| `npm run db:seed` | reset + seed the demo workspace |
-| `npm run db:studio` | Prisma Studio (visual DB browser) |
-| `npm run test` | Vitest unit + integration suite |
-| `npm run typecheck` / `lint` / `build` | quality gates |
-| `npm run check` | lint + typecheck + test + build in one go |
+| `npm run db:migrate` | Apply database changes after an update |
+| `npm run db:seed` | Reset and refill the demo data |
+| `npm run db:studio` | Browse the database visually |
+| `npm run test` | Run the automated tests |
+| `npm run typecheck` / `npm run lint` | Check the code is healthy |
+| `npm run build` | Prepare a production version |
 
-## Using the app
+## Your first automation, step by step
 
-1. **Login** — magic link (console-printed until `RESEND_API_KEY` is set) or
-   the demo button when `DEMO_MODE=true`.
-2. **Create a workspace** — automations, contacts and data are scoped per
-   workspace. Invite teammates under Settings.
-3. **Build an automation** — *Automations → New automation*: pick a trigger,
-   add conditions (keywords, exclusions, post, follower gate), chain actions
-   (public reply → DM with `{{link}}` → tag), then **Test** for a dry run and
-   **Save & activate**.
-4. **Watch it run** — trigger a simulated comment from the test webhook (dev/
-   demo) or wait for real Instagram traffic; inspect *Executions* for the
-   full run path.
-5. **Follow up** — contacts, inbox replies, link click analytics and AI
-   summaries close the loop.
+1. Go to **Automations** and click **New automation**.
+2. Pick a trigger. For the classic case: **Comment**.
+3. Add a condition. Choose *keyword matches* and type `GUIDE`.
+4. Add actions, in order:
+   - **Public reply**: "Sent, check your DMs!"
+   - **Send DM** with the message `Hey {{username}}, here is your guide: {{link}}`
+   - **Tag contact** with "Guide Lead"
+5. Click **Test** to see a dry run with no real messages sent.
+6. Click **Save and activate**.
 
-### Message variables
+That is the whole loop. The builder shows the flow visually, so you can
+always tell at a glance what an automation does. In messages you can use
+placeholders like `{{username}}` and `{{link}}`; OpenDM fills them in per
+person at send time.
 
-`{{username}}` `{{name}}` `{{comment}}` `{{keyword}}` `{{link}}` `{{workspace}}`
-— rendered per contact at execution time (see docs/automation-engine.md).
+## Connecting Instagram
 
-## Meta / Instagram setup
+OpenDM uses Instagram's official API. No scraping, no passwords, no browser
+automation.
 
-Official Meta Graph API only (no scraping, no passwords):
+1. Create a free **Business** app at <https://developers.facebook.com/apps>.
+2. Add the **Instagram** product.
+3. Put the app ID and secret in `.env` (`META_APP_ID`, `META_APP_SECRET`,
+   `META_VERIFY_TOKEN`).
+4. Set up the webhook with the callback
+   `https://your-host/api/webhooks/instagram` and the fields `comments` and
+   `messaging`.
+5. In the app, go to **Settings, Connections** and click
+   **Connect real Instagram**.
 
-1. Create a **Business** Facebook App → add the **Instagram** product.
-2. In `.env`: `META_APP_ID`, `META_APP_SECRET`, `META_VERIFY_TOKEN`.
-3. Configure the webhook (callback `https://your-host/api/webhooks/instagram`,
-   verify token as set, fields `comments` + `messaging`).
-4. Settings → Connections → **Connect real Instagram** (Meta Login for
-   Business; requires App Review + Business Verification for production
-   permissions).
+A few honest notes about Instagram's rules, because OpenDM respects them
+and tells you when it cannot do something:
 
-**What the API allows:** DMs inside the 7-day messaging window (enforced and
-explained in the inbox), public comment replies, story replies, up to 3 CTA
-buttons per DM; follower status requires Meta advanced access — the
-followers-only condition fails closed with a readable reason otherwise.
+- Instagram allows business DMs only inside a 7-day window after the
+  person's last message. OpenDM checks this before sending and explains it
+  clearly if a reply is blocked.
+- Public comment replies work on any comment.
+- Up to 3 quick-reply buttons can ride along with a DM.
+- Follower status for the "followers only" condition requires extra Meta
+  permissions. Without them, that condition fails safely and tells you why.
 
-Full walkthrough and limitation notes: [docs/meta-setup.md](docs/meta-setup.md).
+Step-by-step guide with screenshots-style detail:
+[docs/meta-setup.md](docs/meta-setup.md).
 
-## Project structure
+## Do I need to understand the code to use it?
 
-```
-src/
-  app/            Next.js App Router — API routes + pages
-  components/     UI kit + app shell + automation flow visualizations
-  lib/            infra: db, redis, queues, crypto, logger, security, http
-  auth/           sessions + magic links
-  modules/        feature domains:
-    automations   CRUD, duplicate, archive, export/import, templates
-    engine        conditions, rendering, execution pipeline
-    providers     SocialProvider interface, registry, OAuth, token lifecycle
-    instagram     Meta Graph client, webhook parser, mock provider
-    contacts      mini-CRM (tags, notes, timeline)
-    inbox         conversations, messages, messaging-window verdicts
-    links         tracked redirects + click accounting
-    analytics     SQL aggregates (executions, messages, clicks)
-    ai            provider abstraction + features + usage ledger
-    workspaces    tenants, members, invites, audit
-  worker/         queue processors (ingest → execute → actions → webhooks)
-prisma/           schema + migrations + demo seed
-scripts/          onboarding (npm run init)
-docs/             architecture, setup, deployment, security, automation-engine…
-.github/          CI workflow + issue/PR templates
-```
+No. The app is fully usable through the browser. The technical bits exist
+for people who want to extend or self-host deeply, and they are documented,
+but you never have to touch them. If you encountered a wall, these docs are
+where to look:
 
-More: [docs/architecture.md](docs/architecture.md).
+- 📄 [docs/setup.md](docs/setup.md), every setting explained
+- 🏗️ [docs/architecture.md](docs/architecture.md), how the pieces fit
+- 🚀 [docs/deployment.md](docs/deployment.md), going live on a server
+- 🔐 [docs/security.md](docs/security.md), how your data is protected
+- 🧩 [docs/automation-engine.md](docs/automation-engine.md), triggers,
+  conditions and actions in detail
+- 🛠️ [docs/troubleshooting.md](docs/troubleshooting.md), common problems
+  and fixes
 
 ## Testing
 
 ```bash
-npm run test              # 65 unit + integration tests (needs Docker Postgres)
-npm run typecheck         # tsc --noEmit (strict)
-npm run lint              # ESLint — 0 problems expected
-NODE_ENV=production npm run build   # production build
+npm run test            # 65 unit and integration tests
+npm run typecheck
+npm run lint
+NODE_ENV=production npm run build
 ```
 
-Integration tests run against a disposable `leonyx_flow_test` database and
-cover workspace isolation, invites/roles, automation CRUD, export/import
-roundtrips and link-click dedup. Unit tests cover conditions, rendering,
-schemas, HMAC/hub-signature verification, CSRF pairing and destination
-security.
+The tests cover the important failure paths: keyword matching, message
+rendering, import/export validation, workspace isolation (one customer can
+never see another customer's data), invite and role rules, click dedup and
+webhook signature verification. The demo mode runs the exact same code path
+as production, so you are testing the real thing.
 
-## Production deployment
+## Going live
 
-- **Web:** `NODE_ENV=production npm run build && npm start` — any Node 20
-  host, PaaS (Railway/Fly/Render) or the included `Dockerfile`.
-- **Worker:** `npm run worker` as its own process/container — background work
-  never depends on the web server.
-- **Data:** managed PostgreSQL + Redis (or the bundled compose file).
-- **Env:** strong `SESSION_SECRET`/`ENCRYPTION_KEY`, `APP_URL = https://…`,
-  TLS termination. `DEMO_MODE` must be `false`.
+Three pieces: the website, the worker, and the databases.
 
-Runbook + systemd examples + scaling notes: [docs/deployment.md](docs/deployment.md).
+- **Website:** `npm run build` then `npm start`. Any service that runs
+  Node.js works: a small VPS, Railway, Fly.io, Render.
+- **Worker:** `npm run worker` as its own process. Background work never
+  depends on the website staying awake.
+- **Databases:** managed PostgreSQL and Redis, or the included
+  `docker compose` stack.
 
-## Configuration reference
+Production checklist, systemd examples, scaling notes:
+[docs/deployment.md](docs/deployment.md).
 
-Every variable, with defaults and purposes: [docs/setup.md](docs/setup.md).
-Highlights: `APP_NAME` renames the product; `DEMO_MODE` enables the seeded
-demo login; `META_*` powers real Instagram; `AI_PROVIDER` + matching key
-enable AI; `RESEND_API_KEY` sends magic links by email; `RATE_LIMIT_*` tunes
-per-account outbound throttling.
+## Common questions
 
-## Troubleshooting
+**Is it free?** Yes. MIT license. You can use it, modify it, even sell a
+hosted version.
 
-| Symptom | Fix |
-| --- | --- |
-| `npm install` skips devDependencies / `tsc` missing | The shell exports `NODE_ENV=production` — run `export NODE_ENV=development && npm install` |
-| `next build` fails with `<Html>` error | Build with `NODE_ENV=production` and no dev server running |
-| MySQL-less: infra won't start | Docker Desktop off — start it, re-run `npm run init` |
-| Meta webhook 401 | `META_APP_SECRET` mismatch; GET verify token must equal `META_VERIFY_TOKEN` |
-| Executions stay SKIPPED | Expected when conditions don't match — read the execution detail for the reason |
-| DMs fail "outside messaging window" | Instagram rule, not a bug — see inbox explanation |
-| Analytics shows zeros | Analytics only counts real rows; demo seed creates the first ones |
+**Do I need Meta credentials to try it?** No. Demo mode gives you a full
+sample workspace in one click.
 
-More: [docs/troubleshooting.md](docs/troubleshooting.md).
+**Where is my data stored?** On your own server or computer. OpenDM keeps
+only what the platform API legally provides (username, handle, tags you
+add). Tokens are encrypted before they touch the database.
 
-## Contributing
+**Can I use it with other social networks?** Not yet. Instagram is the first
+adapter. The provider layer is ready for Facebook, WhatsApp, TikTok,
+LinkedIn and X, and those appear as roadmap items. OpenDM will never claim
+support it does not have.
 
-PRs welcome — read [CONTRIBUTING.md](CONTRIBUTING.md) first (code signature,
-landmines, test expectations). Security issues: [SECURITY.md](SECURITY.md).
+**Can I move my automations between computers?** Yes. Every automation can
+be exported as a JSON file and imported anywhere, including a shared library
+of community templates.
+
+**Does OpenDM work with other tools?** Yes, through a webhook action. When
+something happens, OpenDM can notify n8n, Make, Zapier or your own system
+with a signed message it can verify.
+
+## Screenshots
+
+The demo workspace is built for this: one click, no credentials, realistic
+data. Fresh captures are welcome as pull requests. The best views are the
+Automations flow cards, the builder, the Inbox, a contact profile, and the
+Analytics page.
 
 ## Roadmap
 
-- Auth hardening: Google OAuth + passwords + 2FA
-- Stripe self-serve billing (per-workspace plans)
-- Post picker UI for "specific post"; follower snapshots + growth charts
-- Provider adapters: Facebook, WhatsApp, TikTok, LinkedIn, X (roadmap only — no fake support)
-- Automation version history; queue monitor page; n8n node package
-- Playwright E2E suite
+- Google login, passwords and two-factor authentication
+- Self-serve billing with Stripe (paid workspaces)
+- A proper post picker for "specific post" conditions, plus follower growth
+  charts
+- Adapters for Facebook, WhatsApp, TikTok, LinkedIn and X
+- Automation version history and a live queue monitor page
+- An n8n node package and a Zapier connector
+
+## Contributing
+
+Pull requests are welcome, and [CONTRIBUTING.md](CONTRIBUTING.md) is short.
+It covers the code style, the traps to avoid, and how to run the checks
+before submitting. Security issues are handled privately, see
+[SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT © Leonyx AI — see [LICENSE](LICENSE). Built by Laith Nasrallah / Leonyx AI.
+MIT, © Leonyx AI. Built by Laith Nasrallah / Leonyx AI. See
+[LICENSE](LICENSE).
 
-**Topics:** `instagram` · `automation` · `social-media` · `manychat-alternative` ·
-`nextjs` · `typescript` · `self-hosted` · `creator-tools` · `marketing-automation` · `open-source`
+**Topics:** `instagram` `automation` `social-media` `manychat-alternative`
+`nextjs` `typescript` `self-hosted` `creator-tools` `marketing-automation`
+`open-source`
