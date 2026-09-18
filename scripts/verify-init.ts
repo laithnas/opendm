@@ -30,7 +30,7 @@ try {
     "SESSION_SECRET generated (not placeholder)": secret("SESSION_SECRET").length >= 32 && !secret("SESSION_SECRET").includes("change-me"),
     "ENCRYPTION_KEY generated": secret("ENCRYPTION_KEY").length >= 32,
     "META_VERIFY_TOKEN generated": secret("META_VERIFY_TOKEN").length >= 12 && !secret("META_VERIFY_TOKEN").includes("change-me"),
-    "printed next steps": out.includes("Leonyx Flow is ready"),
+    "printed next steps": out.includes("OpenDM is ready"),
   };
   let ok = true;
   for (const [k, v] of Object.entries(checks)) {

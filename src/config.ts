@@ -3,7 +3,7 @@
 
 export const product = {
   /** Product name. Change to rename the product everywhere. */
-  name: process.env.APP_NAME?.trim() || "Leonyx Flow",
+  name: process.env.APP_NAME?.trim() || "OpenDM",
   /** Short tagline used on the landing page and emails. */
   tagline: "Own your social automations.",
   /** Company / vendor name. */
@@ -12,7 +12,7 @@ export const product = {
   logoUrl: process.env.LOGO_URL?.trim() || "",
   links: {
     site: "https://www.leonyx-ai.com/",
-    github: "https://github.com/laithnas/leonyx-flow",
+    github: "https://github.com/laithnas/opendm",
   },
 } as const;
 

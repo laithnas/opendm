@@ -6,7 +6,7 @@ import { z } from "zod";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.string().url().default("http://localhost:3000"),
-  APP_NAME: z.string().default("Leonyx Flow"),
+  APP_NAME: z.string().default("OpenDM"),
   COMPANY_NAME: z.string().default("Leonyx AI"),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1).default("redis://localhost:6379"),
@@ -14,7 +14,7 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().min(16),
   TOKEN_REFRESH_THRESHOLD_SECONDS: z.coerce.number().int().positive().default(3600),
   RESEND_API_KEY: z.string().optional().default(""),
-  EMAIL_FROM: z.string().default("Leonyx Flow <no-reply@leonyx-ai.com>"),
+  EMAIL_FROM: z.string().default("OpenDM <no-reply@leonyx-ai.com>"),
   META_APP_ID: z.string().optional().default(""),
   META_APP_SECRET: z.string().optional().default(""),
   META_VERIFY_TOKEN: z.string().optional().default(""),

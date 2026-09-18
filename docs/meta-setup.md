@@ -1,6 +1,6 @@
 # Meta / Instagram setup
 
-Leonyx Flow only uses official Meta APIs: Instagram Messaging (DMs), comment
+OpenDM only uses official Meta APIs: Instagram Messaging (DMs), comment
 replies via the Graph API, and Instagram webhooks. No scraping, no browser
 automation, no passwords.
 

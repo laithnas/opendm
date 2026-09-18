@@ -1,6 +1,6 @@
 # Architecture
 
-Leonyx Flow is a deliberately boring three-tier system: **Next.js app (web + API)**, **PostgreSQL (state)**, **Redis + BullMQ (asynchrony)**, with a **standalone worker process** doing all retryable work.
+OpenDM is a deliberately boring three-tier system: **Next.js app (web + API)**, **PostgreSQL (state)**, **Redis + BullMQ (asynchrony)**, with a **standalone worker process** doing all retryable work.
 
 ```mermaid
 flowchart LR

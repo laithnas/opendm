@@ -1,4 +1,4 @@
-# Leonyx Flow
+# OpenDM
 
 **Open-source social automation OS for creators, agencies and businesses.**
 
@@ -15,7 +15,7 @@ passwords.
 
 ## Table of contents
 
-- [Why Leonyx Flow](#why)
+- [Why OpenDM](#why)
 - [Features](#features)
 - [Quick start (3 commands)](#quick-start-3-commands)
 - [What `npm run init` does](#what-npm-run-init-does)
@@ -36,7 +36,7 @@ passwords.
 ## Why
 
 Most comment→DM tools are closed SaaS with per-message pricing and no data
-access. Leonyx Flow is:
+access. OpenDM is:
 
 - **An automation engine, not a hardcoded flow.** Trigger → conditions →
   actions → delay → next action. New triggers and actions register without
@@ -69,7 +69,7 @@ access. Leonyx Flow is:
 Requirements: **Node 20+** and **Docker** (for local Postgres + Redis).
 
 ```bash
-git clone https://github.com/laithnas/leonyx-flow
+git clone https://github.com/laithnas/opendm
 cd leonyx-flow
 npm install && npm run init
 npm run dev:all            # app on http://localhost:3000 + worker, together

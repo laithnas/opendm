@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Leonyx Flow — one-command setup.
+ * OpenDM — one-command setup.
  *
  *   npm run init            # everything: .env, Postgres+Redis, migrate
  *   npm run init -- --seed  # + demo workspace with realistic data
@@ -151,7 +151,7 @@ function printNextSteps(seed: boolean): void {
   const appUrl = envValue("APP_URL") || "http://localhost:3000";
   console.log("");
   console.log(C.bold + "─".repeat(60) + C.reset);
-  console.log(C.green + C.bold + "  Leonyx Flow is ready 🎉" + C.reset);
+  console.log(C.green + C.bold + "  OpenDM is ready 🎉" + C.reset);
   console.log(C.bold + "─".repeat(60) + C.reset);
   console.log("");
   console.log(`  ${C.bold}1. Start the app + worker:${C.reset}`);
@@ -186,7 +186,7 @@ const args = process.argv.slice(2);
 const withSeed = args.includes("--seed");
 const skipDocker = args.includes("--no-docker");
 
-console.log(C.bold + "Leonyx Flow — setup" + C.reset);
+console.log(C.bold + "OpenDM — setup" + C.reset);
 console.log("");
 
 try {

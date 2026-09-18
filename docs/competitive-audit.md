@@ -1,8 +1,8 @@
-# Competitive audit: OpenReply (reference) vs Leonyx Flow
+# Competitive audit: OpenReply (reference) vs OpenDM
 
 Internal audit written while studying <https://github.com/diwenne/openreply> as
 reference material. OpenReply is a competent single-purpose Instagram
-comment→DM tool; Leonyx Flow is architected as a general automation engine.
+comment→DM tool; OpenDM is architected as a general automation engine.
 Nothing here copied — concepts reimplemented independently.
 
 ## What OpenReply does well
@@ -39,7 +39,7 @@ Nothing here copied — concepts reimplemented independently.
 
 ## Where the new implementation is meaningfully better
 
-| Capability | OpenReply | Leonyx Flow |
+| Capability | OpenReply | OpenDM |
 | --- | --- | --- |
 | Automation model | hardcoded comment→DM booleans | trigger → conditions → actions, first-class delay/branch |
 | Observability | dm log + operational events | executions + steps + retries + errors + durations |
@@ -59,4 +59,4 @@ Nothing here copied — concepts reimplemented independently.
 - Messaging-window and API restrictions aren't surfaced pre-send.
 
 These observations shaped the builder, demo mode, and window enforcement in
-Leonyx Flow.
+OpenDM.

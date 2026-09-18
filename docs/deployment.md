@@ -46,7 +46,7 @@ expected to run on a PaaS (Vercel/Railway/Fly) or a VM.
 ```ini
 # /etc/systemd/system/leonyx-flow-web.service
 [Unit]
-Description=Leonyx Flow web
+Description=OpenDM web
 After=network.target
 
 [Service]

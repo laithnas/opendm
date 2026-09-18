@@ -1,11 +1,11 @@
 # Launch materials
 
-Concise, honest material for publishing Leonyx Flow publicly. Nothing here
+Concise, honest material for publishing OpenDM publicly. Nothing here
 invents usage metrics.
 
 ## 1. GitHub repo launch description
 
-> **Leonyx Flow — the open-source social automation OS.**
+> **OpenDM — the open-source social automation OS.**
 > Turn Instagram comments, DMs and story replies into workflows you own:
 > visual automations (trigger → conditions → actions), unified inbox, mini-CRM,
 > tracked links and real analytics. Official Meta APIs only — no scraping, no
@@ -13,7 +13,7 @@ invents usage metrics.
 
 ## 2. LinkedIn project description
 
-> I open-sourced Leonyx Flow — a self-hosted social automation engine built
+> I open-sourced OpenDM — a self-hosted social automation engine built
 > to replace black-box comment→DM tools for creators, agencies and local
 > businesses.
 >
@@ -34,7 +34,7 @@ invents usage metrics.
 
 ## 3. Resume / project bullet
 
-> **Leonyx Flow — open-source social automation platform (0→1)**
+> **OpenDM — open-source social automation platform (0→1)**
 > Designed and built a self-hosted automation OS for Instagram-driven
 > businesses: visual workflow builder, unified inbox, mini-CRM, tracked-link
 > analytics, AI-assisted campaign drafting, and a queue-backed execution
