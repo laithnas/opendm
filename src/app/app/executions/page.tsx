@@ -15,6 +15,8 @@ interface ExecRow {
   automation: { id: string; name: string };
   contact: { id: string; username: string; name: string | null } | null;
   _count: { steps: number };
+  statusReason?: string | null;
+  error?: string | null;
 }
 
 const PAGE = 25;
@@ -75,7 +77,14 @@ export default function ExecutionsPage() {
                   <td className="font-medium">{e.automation.name}</td>
                   <td>{e.triggerType.replace("_", " ").toLowerCase()}</td>
                   <td>{e.contact ? `@${e.contact.username}` : "—"}</td>
-                  <td><StatusBadge status={e.status} /></td>
+                  <td>
+                    <StatusBadge status={e.status} />
+                    {e.status === "SKIPPED" && (e.statusReason || e.error) && (
+                      <p className="mt-0.5 max-w-[220px] truncate text-[11px] text-muted-light dark:text-muted-dark" title={(e.statusReason || e.error) as string}>
+                        {e.statusReason || e.error}
+                      </p>
+                    )}
+                  </td>
                   <td className="tabular-nums">{e._count.steps}</td>
                   <td className="text-muted-light dark:text-muted-dark">{fmtRelative(e.createdAt)}</td>
                   <td className="tabular-nums text-muted-light dark:text-muted-dark">

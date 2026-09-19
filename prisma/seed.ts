@@ -11,7 +11,8 @@ import { encryptSecret } from "../src/lib/crypto";
 const prisma = new PrismaClient();
 
 const DEMO_EMAIL = "demo@leonyx.local";
-const DEMO_USERNAME = "the.barbershop.demo";
+const DEMO_USERNAME = "leonyxai";
+const DEMO_ACCOUNT_NAME = "Leonyx AI";
 
 function daysAgo(days: number, hour = 12): Date {
   const d = new Date();
@@ -63,14 +64,14 @@ async function main() {
       workspaceId,
       connectedByUserId: user.id,
       provider: "INSTAGRAM",
-      externalAccountId: "demo-ig-account",
+      externalAccountId: "ig-leonyxai",
       username: DEMO_USERNAME,
-      displayName: "Demo Studio",
+      displayName: DEMO_ACCOUNT_NAME,
       accessTokenEnc: encryptSecret("demo-token"),
       tokenExpiresAt: daysAgo(-350),
       status: "ACTIVE",
       scopes: ["instagram_business_basic", "instagram_business_manage_messages", "instagram_business_manage_comments"],
-      meta: { demo: true, followers: 12480 },
+      meta: { demo: true, followers: 31200 },
     },
   });
 
@@ -190,6 +191,64 @@ async function main() {
         { kind: "KEYWORD_MATCH" as const, config: { keywords: ["LAUNCH", "WAITLIST"], matchAny: true, caseInsensitive: true, wholeWord: false }, order: 0 },
       ],
       actions: [{ kind: "PUBLIC_REPLY" as const, config: { text: "We love the hype! 🔥" }, order: 0, delayMs: 0 }],
+    },
+    {
+      key: "webinar-draft",
+      name: "Webinar registration (draft)",
+      description: "Draft: people commenting WEBINAR get the signup link.",
+      triggerType: "COMMENT" as const,
+      triggerConfig: {},
+      status: "DRAFT" as const,
+      conditions: [
+        { kind: "KEYWORD_MATCH" as const, config: { keywords: ["WEBINAR", "REGISTER"], matchAny: true, caseInsensitive: true, wholeWord: false }, order: 0 },
+      ],
+      actions: [
+        { kind: "SEND_LINK" as const, config: { text: "Save your seat here: {{link}}", linkSlug: "demo-newsletter", linkName: "Newsletter Signup", linkDestination: "https://www.leonyx-ai.com/demo/newsletter" }, order: 0, delayMs: 0 },
+        { kind: "ADD_TAG" as const, config: { tag: "Webinar" }, order: 1, delayMs: 0 },
+      ],
+    },
+    {
+      key: "realestate",
+      name: "Real estate listing (paused)",
+      description: "Paused: listing inquiries get the tour booking link.",
+      triggerType: "DM" as const,
+      triggerConfig: {},
+      status: "PAUSED" as const,
+      conditions: [
+        { kind: "KEYWORD_MATCH" as const, config: { keywords: ["LISTING", "TOUR", "AVAILABLE"], matchAny: true, caseInsensitive: true, wholeWord: false }, order: 0 },
+      ],
+      actions: [
+        { kind: "SEND_LINK" as const, config: { text: "This one is still available! Book a tour: {{link}}", linkSlug: "demo-booking", linkName: "Book Now", linkDestination: "https://www.leonyx-ai.com/demo/booking" }, order: 0, delayMs: 0 },
+        { kind: "ADD_TAG" as const, config: { tag: "Real Estate" }, order: 1, delayMs: 0 },
+      ],
+    },
+    {
+      key: "giveaway-archived",
+      name: "Summer giveaway (archived)",
+      description: "Archived: last season's giveaway flow, kept for reference.",
+      triggerType: "COMMENT" as const,
+      triggerConfig: {},
+      status: "ARCHIVED" as const,
+      conditions: [
+        { kind: "KEYWORD_MATCH" as const, config: { keywords: ["GIVEAWAY", "WIN"], matchAny: true, caseInsensitive: true, wholeWord: false }, order: 0 },
+      ],
+      actions: [
+        { kind: "SEND_DM" as const, config: { text: "You're in! Winners are announced on stories 🍀" }, order: 0, delayMs: 0 },
+      ],
+    },
+    {
+      key: "bf-archived",
+      name: "Black Friday 2025 (archived)",
+      description: "Archived: the Black Friday promo flow from last season.",
+      triggerType: "COMMENT" as const,
+      triggerConfig: {},
+      status: "ARCHIVED" as const,
+      conditions: [
+        { kind: "KEYWORD_MATCH" as const, config: { keywords: ["DEAL", "CODE"], matchAny: true, caseInsensitive: true, wholeWord: false }, order: 0 },
+      ],
+      actions: [
+        { kind: "SEND_DM" as const, config: { text: "Here's your code: LEONYX25 🖤" }, order: 0, delayMs: 0 },
+      ],
     },
   ];
 
