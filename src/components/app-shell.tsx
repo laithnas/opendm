@@ -6,15 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Workflow, Inbox as InboxIcon, Users, BarChart3, Link2, Activity, Settings, LogOut, Zap, Github, Menu, X, Sun, Moon,
 } from "lucide-react";
-import { api, setActiveWorkspace, getActiveWorkspace, setCsrfToken } from "@/lib/client";
+import { api, setActiveWorkspace, getActiveWorkspace, setCsrfToken, markDemoMode } from "@/lib/client";
 import { ToastProvider } from "@/components/ui/ui";
-import { product, isDemoMode } from "@/config";
+import { product } from "@/config";
 
 interface SessionData {
   user: { id: string; email: string; name?: string | null; isDemo: boolean };
   workspaces: { id: string; name: string; role: string }[];
   activeWorkspaceId: string | null;
   csrfToken: string | null;
+  demoMode?: boolean;
 }
 
 const NAV = [
@@ -43,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     api<SessionData>("/api/auth/me", { skipAuthRedirect: true })
       .then((data) => {
         setCsrfToken(data.csrfToken);
+        markDemoMode(Boolean(data.demoMode));
         if (data.activeWorkspaceId) setActiveWorkspace(data.activeWorkspaceId);
         setSession(data);
       })

@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, MousePointerClick, MessageSquare, CornerDownRight, Zap } from "lucide-react";
-import { api, post, getActiveWorkspace, fmtRelative } from "@/lib/client";
+import { api, post, getActiveWorkspace, fmtRelative, isDemoMode } from "@/lib/client";
 import { PageHeader, StatCard, EmptyState, Skeleton, useToast } from "@/components/ui/ui";
-
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 interface DashboardData {
   metrics: {
@@ -100,7 +98,7 @@ export default function DashboardPage() {
 
       {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">{error}</p>}
 
-      {DEMO_MODE && (
+      {isDemoMode() && (
         <div className="card mb-6 border-accent/30 bg-accent/[0.03] p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>

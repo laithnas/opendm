@@ -1,5 +1,15 @@
 // Client-side API layer: workspace header + CSRF + error normalization.
 
+// Runtime demo-mode flag. The server reports it (DEMO_MODE env) through the
+// session/status APIs; build-time env inlining is unreliable for this.
+let demoMode = false;
+export function markDemoMode(v: boolean) {
+  demoMode = v;
+}
+export function isDemoMode() {
+  return demoMode;
+}
+
 export class ApiError extends Error {
   status: number;
   code: string;

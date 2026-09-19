@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ArrowRight, Zap } from "lucide-react";
-import { api } from "@/lib/client";
+import { api, markDemoMode } from "@/lib/client";
 import { product } from "@/config";
 
 export default function LoginForm() {
@@ -14,7 +14,16 @@ export default function LoginForm() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const errorParam = params.get("error");
-  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+  const [demoMode, setDemoMode] = useState(false);
+
+  useEffect(() => {
+    api<{ demoMode: boolean }>("/api/auth/status", { skipAuthRedirect: true })
+      .then((res) => {
+        setDemoMode(Boolean(res.demoMode));
+        markDemoMode(Boolean(res.demoMode));
+      })
+      .catch(() => undefined);
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

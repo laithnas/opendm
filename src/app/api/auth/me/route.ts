@@ -25,6 +25,7 @@ export const GET = apiRoute({
       workspaces: workspaces.map((m) => ({ ...m.workspace, role: m.role })),
       activeWorkspaceId,
       csrfToken,
+      demoMode: process.env.DEMO_MODE === "true",
     });
   },
 });
