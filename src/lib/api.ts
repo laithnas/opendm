@@ -3,7 +3,7 @@ import { ZodSchema } from "zod";
 import { withContext, log } from "@/lib/logger";
 import { AppError, ValidationError, isAppError } from "@/lib/errors";
 import { requireUser, readWorkspaceCookie, type SessionUser } from "@/auth/session";
-import { getMembership, type WorkspaceContext } from "@/modules/workspaces/access";
+import { getMembership, listUserWorkspaces, type WorkspaceContext } from "@/modules/workspaces/access";
 import { CSRF_COOKIE, CSRF_HEADER, requireCsrf } from "@/lib/security";
 import { cookies } from "next/headers";
 
@@ -53,9 +53,20 @@ export function apiRoute(def: ApiRouteDef) {
         let workspace: WorkspaceContext | null = null;
         if (def.workspace) {
           if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-          const workspaceId = req.headers.get("x-workspace-id") ?? readWorkspaceCookie();
+          const requestedId = req.headers.get("x-workspace-id");
+          const viaCookie = !requestedId;
+          const workspaceId = requestedId ?? readWorkspaceCookie();
           if (!workspaceId) throw new AppError("No active workspace", 400, "WORKSPACE_REQUIRED");
           workspace = await getMembership(user.id, workspaceId);
+          if (!workspace && viaCookie) {
+            // Stale cookie: the workspace was deleted (e.g. demo reseed).
+            // Self-heal by falling back to the user's first workspace so the
+            // app keeps working instead of bricking every request. The
+            // explicit header path stays strict (IDOR protection).
+            const first = (await listUserWorkspaces(user.id))[0];
+            // Re-resolve through getMembership for the canonical context shape.
+            workspace = first ? await getMembership(user.id, first.workspace.id) : null;
+          }
           if (!workspace) throw new AppError("Not a member of this workspace", 403, "NOT_IN_WORKSPACE");
           if (def.roles && !def.roles.includes(workspace.role)) {
             throw new AppError("Insufficient role", 403, "FORBIDDEN");
