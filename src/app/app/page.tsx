@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
-import { api, getActiveWorkspace, fmtRelative } from "@/lib/client";
-import { PageHeader, StatCard, EmptyState, Skeleton } from "@/components/ui/ui";
+import { ArrowRight, MousePointerClick, MessageSquare, CornerDownRight, Zap } from "lucide-react";
+import { api, post, getActiveWorkspace, fmtRelative } from "@/lib/client";
+import { PageHeader, StatCard, EmptyState, Skeleton, useToast } from "@/components/ui/ui";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 interface DashboardData {
   metrics: {
@@ -34,6 +36,8 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState("30");
+  const [busyEvent, setBusyEvent] = useState<string | null>(null);
+  const [lastEvent, setLastEvent] = useState<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -44,6 +48,37 @@ export default function DashboardPage() {
       .then(setData)
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
   }, [ws, range]);
+
+  const { toast } = useToast();
+
+  // Demo-only: fire a realistic simulated event through the real queue.
+  const fireDemoEvent = async (kind: "COMMENT" | "DM" | "STORY_REPLY") => {
+    if (!ws) return;
+    const names = ["sarah.waves", "fade.hunter", "dreads.dana", "trim.tom", "nina.naps", "vic.fade"];
+    const username = names[Math.floor(Math.random() * names.length)] ?? "demo.follower";
+    const payload =
+      kind === "COMMENT"
+        ? { kind, text: "GUIDE", username, externalUserId: `live-demo-${Date.now()}` }
+        : kind === "DM"
+          ? { kind, text: "hi! what's your pricing?", username, externalUserId: `live-demo-${Date.now()}` }
+          : { kind, text: "YES", username, externalUserId: `live-demo-${Date.now()}` };
+    setBusyEvent(kind);
+    try {
+      const res = await post<{ eventId: string }>("/api/webhooks/test", payload);
+      setLastEvent(res.eventId);
+      toast("success", kind === "COMMENT" ? "Comment fired. Watch it run live." : kind === "DM" ? "DM fired. Watch it run live." : "Story reply fired. Watch it run live.");
+      // Refresh the dashboard numbers a moment later so the demo looks alive.
+      window.setTimeout(() => {
+        const from = new Date();
+        from.setDate(from.getDate() - Number(range));
+        api<DashboardData>(`/api/workspaces/${ws}/analytics?from=${from.toISOString()}`).then(setData).catch(() => undefined);
+      }, 4500);
+    } catch (e) {
+      toast("error", e instanceof Error ? e.message : "Demo trigger failed");
+    } finally {
+      setBusyEvent(null);
+    }
+  };
 
   const totals = data?.metrics;
 
@@ -64,6 +99,42 @@ export default function DashboardPage() {
       />
 
       {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">{error}</p>}
+
+      {DEMO_MODE && (
+        <div className="card mb-6 border-accent/30 bg-accent/[0.03] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-bold">
+                <Zap className="h-4 w-4 text-accent" /> Live demo trigger
+              </h3>
+              <p className="mt-1 text-xs text-muted-light dark:text-muted-dark">
+                Press a button and watch OpenDM do its thing in real time. The event travels through the actual queue, worker and engine.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button className="btn-primary !py-1.5 text-xs" disabled={Boolean(busyEvent)} onClick={() => fireDemoEvent("COMMENT")}>
+                <MousePointerClick className="h-3.5 w-3.5" /> {busyEvent === "COMMENT" ? "Firing…" : "Simulate a comment (GUIDE)"}
+              </button>
+              <button className="btn-secondary !py-1.5 text-xs" disabled={Boolean(busyEvent)} onClick={() => fireDemoEvent("DM")}>
+                <MessageSquare className="h-3.5 w-3.5" /> {busyEvent === "DM" ? "Firing…" : "Simulate a DM"}
+              </button>
+              <button className="btn-secondary !py-1.5 text-xs" disabled={Boolean(busyEvent)} onClick={() => fireDemoEvent("STORY_REPLY")}>
+                <CornerDownRight className="h-3.5 w-3.5" /> {busyEvent === "STORY_REPLY" ? "Firing…" : "Story reply"}
+              </button>
+            </div>
+          </div>
+          {lastEvent && (
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-canvas-light px-3 py-2 text-xs dark:bg-canvas-dark">
+              <span>
+                Event <code className="rounded bg-white px-1 py-0.5 font-mono text-[11px] dark:bg-surface-dark">{lastEvent.slice(0, 24)}…</code> queued
+              </span>
+              <button className="font-semibold text-accent hover:underline" onClick={() => router.push("/app/executions")}>
+                Watch it run →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {!data ? (
         <><Skeleton className="h-24 rounded-xl" /><Skeleton className="mt-4 h-72 rounded-xl" /></>
