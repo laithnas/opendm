@@ -85,10 +85,10 @@ async function main() {
   // Tracked links
   const links = new Map<string, { id: string; slug: string }>();
   const linkDefs = [
-    { key: "guide", name: "SEO Checklist", destination: "https://www.leonyx-ai.com/demo/seo-checklist" },
-    { key: "price", name: "Pricing Page", destination: "https://www.leonyx-ai.com/demo/pricing" },
-    { key: "newsletter", name: "Newsletter Signup", destination: "https://www.leonyx-ai.com/demo/newsletter" },
-    { key: "booking", name: "Book Now", destination: "https://www.leonyx-ai.com/demo/booking" },
+    { key: "demo-guide", name: "SEO Checklist", destination: "https://www.leonyx-ai.com/demo/seo-checklist" },
+    { key: "demo-price", name: "Pricing Page", destination: "https://www.leonyx-ai.com/demo/pricing" },
+    { key: "demo-newsletter", name: "Newsletter Signup", destination: "https://www.leonyx-ai.com/demo/newsletter" },
+    { key: "demo-booking", name: "Book Now", destination: "https://www.leonyx-ai.com/demo/booking" },
   ];
   for (const def of linkDefs) {
     const link = await prisma.trackedLink.create({
@@ -215,6 +215,22 @@ async function main() {
     autoByKey[def.key] = { id: created.id, actions: created.actions.map((a) => ({ kind: a.kind, order: a.order, config: a.config as Record<string, unknown> })) };
   }
 
+  // Attribute each demo tracked link to its automation so per-automation
+  // click metrics show real numbers on the dashboard.
+  const linkToAutomation: [string, string][] = [
+    ["demo-guide", "guide"],
+    ["demo-price", "price"],
+    ["demo-newsletter", "newsletter"],
+    ["demo-booking", "story"],
+  ];
+  for (const [slug, autoKey] of linkToAutomation) {
+    const link = links.get(slug);
+    const autoId = automationIds.get(autoKey);
+    if (link && autoId) {
+      await prisma.trackedLink.update({ where: { id: link.id }, data: { automationId: autoId } });
+    }
+  }
+
   // Contacts
   const contactDefs: ContactSeedDef[] = [
     { username: "barber.mike", name: "Mike Johnson", tags: ["Guide Lead", "Newsletter"], follower: true, source: "COMMENT" },
@@ -269,6 +285,16 @@ async function main() {
     { contactIdx: 13, lines: [["in", "we run 3 salons, could you automate our booking dms?"], ["out", "Absolutely — happy to walk through it. What's your stack?"]], unread: true },
   ];
 
+  // Extra outbound DM history so the funnel (DMs sent vs clicks) looks real.
+  const followUpLines = [
+    ["out", "Quick follow-up, did you get a chance to look? 🙌"],
+    ["out", "Booking is open this week if you want a slot: {{link}}"],
+    ["out", "Meanwhile here is the full guide again: {{link}}"],
+    ["out", "Meant to send this earlier, pricing overview: {{link}}"],
+    ["out", "Still saving you a spot, let me know! {{link}}"],
+  ];
+  const createdConvos: { id: string; contactId: string }[] = [];
+
   for (const [i, def] of convoDefs.entries()) {
     const contact = contactIds[def.contactIdx];
     if (!contact) continue;
@@ -304,6 +330,38 @@ async function main() {
           sentAt: daysAgo(i + 1, 9 + j),
           deliveredAt: daysAgo(i + 1, 9 + j),
           externalId: `demo-msg-${i}-${j}`,
+        },
+      });
+    }
+    createdConvos.push({ id: conversation.id, contactId: contact });
+  }
+
+  // Additional outbound messages so the funnel (DMs sent vs clicks) looks
+  // believable on camera: roughly one follow-up per conversation per day.
+  const followUpPool: [string, string][] = [
+    ["demo-guide", "Quick follow-up, did you get a chance to look? 🙌"],
+    ["demo-booking", "Booking is open this week if you want a slot: {{link}}"],
+    ["demo-price", "Meant to send this earlier, pricing overview: {{link}}"],
+    ["demo-newsletter", "This week's issue is out, here: {{link}}"],
+  ];
+  for (const [idx, convo] of createdConvos.entries()) {
+    const [linkKey, raw] = followUpPool[idx % followUpPool.length] ?? ["demo-guide", "Here you go: {{link}}"];
+    for (let k = 0; k < 5; k++) {
+      const content = raw.replace("{{link}}", linkUrl(linkKey!));
+      await prisma.message.create({
+        data: {
+          workspaceId,
+          conversationId: convo.id,
+          contactId: convo.contactId,
+          socialConnectionId: connection.id,
+          provider: "INSTAGRAM",
+          direction: "OUTBOUND",
+          kind: k % 3 === 0 ? "LINK" : "TEXT",
+          content,
+          status: "DELIVERED",
+          sentAt: daysAgo(idx + 1, 11 + k),
+          deliveredAt: daysAgo(idx + 1, 11 + k),
+          externalId: `demo-followup-${convo.id}-${k}`,
         },
       });
     }
@@ -381,20 +439,20 @@ async function main() {
     });
   }
 
-  // Link clicks
+  // Link clicks (balanced against outbound DMs so the funnel looks real)
   const clickSpecs = [
-    { link: "demo-guide", days: 0, count: 14 },
-    { link: "demo-guide", days: 1, count: 8 },
-    { link: "demo-guide", days: 3, count: 5 },
-    { link: "demo-guide", days: 5, count: 6 },
-    { link: "demo-guide", days: 8, count: 3 },
-    { link: "demo-price", days: 0, count: 6 },
-    { link: "demo-price", days: 2, count: 4 },
-    { link: "demo-price", days: 6, count: 2 },
-    { link: "demo-newsletter", days: 1, count: 7 },
-    { link: "demo-newsletter", days: 4, count: 5 },
-    { link: "demo-newsletter", days: 9, count: 2 },
-    { link: "demo-booking", days: 2, count: 3 },
+    { link: "demo-guide", days: 0, count: 6 },
+    { link: "demo-guide", days: 1, count: 4 },
+    { link: "demo-guide", days: 3, count: 3 },
+    { link: "demo-guide", days: 5, count: 3 },
+    { link: "demo-guide", days: 8, count: 2 },
+    { link: "demo-price", days: 0, count: 3 },
+    { link: "demo-price", days: 2, count: 2 },
+    { link: "demo-price", days: 6, count: 1 },
+    { link: "demo-newsletter", days: 1, count: 3 },
+    { link: "demo-newsletter", days: 4, count: 2 },
+    { link: "demo-newsletter", days: 9, count: 1 },
+    { link: "demo-booking", days: 2, count: 2 },
   ];
   let clickIdx = 0;
   for (const spec of clickSpecs) {
