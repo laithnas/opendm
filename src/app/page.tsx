@@ -37,7 +37,7 @@ export default function LandingPage() {
           {product.tagline} Turn Instagram comments, DMs and story replies into workflows you control — with an inbox, contacts, tracked links and analytics that stay yours.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <a href="https://github.com/leonyx-ai/leonyx-flow" target="_blank" rel="noreferrer" className="btn-primary">
+          <a href={product.links.github} target="_blank" rel="noreferrer" className="btn-primary">
             <Github className="h-4 w-4" /> View on GitHub
           </a>
           <Link href="/app" className="btn-secondary">
