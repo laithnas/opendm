@@ -18,7 +18,10 @@ import type {
 //   - text containing "<ratelimit>" → throws a rate-limit style ProviderError.
 
 export class MockInstagramProvider implements SocialProvider {
-  kind = "instagram" as const;
+  // Distinct from the real "instagram" adapter's kind — sharing a key meant
+  // whichever registered second silently shadowed the other for every
+  // lookup, real connections included. Selected via getProviderForConnection.
+  kind = "instagram-mock" as const;
   displayName = "Instagram (mock)";
 
   capabilities = {

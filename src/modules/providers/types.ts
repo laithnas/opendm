@@ -78,7 +78,10 @@ export interface NormalizedEvent {
 }
 
 export interface SocialProvider {
-  kind: ProviderKind;
+  // Registry identity — broader than ProviderKind so a provider can register
+  // a variant (e.g. a mock adapter) without colliding with the real one.
+  // Events it produces still carry a real ProviderKind (see NormalizedEvent).
+  kind: ProviderKind | (string & {});
   displayName: string;
   /**
    * `commentId` sends a comment private reply (allowed once per comment, within

@@ -19,6 +19,19 @@ export function getSocialProvider(kind: string): SocialProvider {
   return provider;
 }
 
+/**
+ * Resolve the adapter for an actual stored connection — routes demo
+ * connections (connectDemoInstagram, meta.demo === true) to the mock
+ * adapter and everything else to the real one, even though both share the
+ * same `provider` DB enum ("INSTAGRAM").
+ */
+export function getProviderForConnection(connection: { provider: string; meta?: unknown }): SocialProvider {
+  const meta = connection.meta as Record<string, unknown> | null | undefined;
+  const isDemo = meta != null && typeof meta === "object" && meta.demo === true;
+  const kind = connection.provider.toLowerCase();
+  return getSocialProvider(isDemo && kind === "instagram" ? "instagram-mock" : kind);
+}
+
 /** Providers with a functioning adapter (Instagram = v1). */
 export function supportedProviders(): string[] {
   return ["instagram"];

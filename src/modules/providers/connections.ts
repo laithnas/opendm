@@ -98,8 +98,8 @@ export async function revokeConnection(workspaceId: string, connectionId: string
  */
 export async function checkConnectionHealth(workspaceId: string, connectionId: string) {
   const connection = await getConnection(workspaceId, connectionId);
-  const { getSocialProvider } = await import("@/modules/providers/registry");
-  const provider = getSocialProvider(connection.provider.toLowerCase());
+  const { getProviderForConnection } = await import("@/modules/providers/registry");
+  const provider = getProviderForConnection(connection);
   try {
     const token = connection.accessTokenEnc ? decryptSecret(connection.accessTokenEnc) : null;
     if (!token) throw new Error("token missing");

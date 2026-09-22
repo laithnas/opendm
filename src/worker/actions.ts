@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { log } from "@/lib/logger";
 import type { ActionJobData } from "@/lib/queue";
-import { getSocialProvider } from "@/modules/providers/registry";
+import { getProviderForConnection } from "@/modules/providers/registry";
 import { providerCtx, finalizeExecution, windowVerdictFor } from "@/modules/engine/execute";
 import { tagContact, recordInteraction } from "@/modules/contacts/service";
 import { addOutboundMessage } from "@/modules/inbox/service";
@@ -48,7 +48,7 @@ export async function processActionJob(data: ActionJobData): Promise<void> {
           return;
         }
         if (!connection) throw new Error("no connected social account");
-        const provider = getSocialProvider(connection.provider.toLowerCase());
+        const provider = getProviderForConnection(connection);
         // A commenter who never messaged the account can only be reached with
         // a comment private reply (recipient.comment_id), once per comment.
         // Later steps and contacts already in a conversation use their user id.
@@ -100,7 +100,7 @@ export async function processActionJob(data: ActionJobData): Promise<void> {
       }
       case "PUBLIC_REPLY": {
         if (!connection) throw new Error("no connected social account for public reply");
-        const provider = getSocialProvider(connection.provider.toLowerCase());
+        const provider = getProviderForConnection(connection);
         const result = await provider.sendPublicReply(providerCtx(connection), {
           commentId: payload.commentId ?? "",
           mediaId: payload.mediaId ?? "",

@@ -1,7 +1,7 @@
 import { apiRoute, json } from "@/lib/api";
 import { z } from "zod";
 import { getConversation, markConversationRead, setConversationStatus, addOutboundMessage, messagingWindowVerdict } from "@/modules/inbox/service";
-import { getSocialProvider } from "@/modules/providers/registry";
+import { getProviderForConnection } from "@/modules/providers/registry";
 import { providerCtx } from "@/modules/engine/execute";
 import { prisma } from "@/lib/db";
 import { AppError, ProviderError } from "@/lib/errors";
@@ -60,7 +60,7 @@ export const POST = apiRoute({
       throw new AppError("The connected account is unavailable — reconnect it in Settings", 409, "CONNECTION_UNAVAILABLE");
     }
 
-    const provider = getSocialProvider(connection.provider.toLowerCase());
+    const provider = getProviderForConnection(connection);
     const result = await provider.sendDm(providerCtx(connection), { externalId: conversation.contact.externalId }, { text: content });
 
     await addOutboundMessage({
