@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { apiRoute, json } from "@/lib/api";
 import { requireWorkspaceRole } from "@/modules/workspaces/access";
 import { revokeConnection, checkConnectionHealth } from "@/modules/providers/connections";
@@ -24,8 +25,9 @@ export const DELETE = apiRoute({
 // POST {action:"health"} — run a live token health check.
 export const POST = apiRoute({
   workspace: true,
+  schema: z.object({ action: z.string() }),
   handler: async (ctx) => {
-    const { action } = (ctx.body ?? {}) as { action?: string };
+    const { action } = ctx.body as { action: string };
     if (action === "health") {
       const result = await checkConnectionHealth(ctx.workspace!.workspaceId, ctx.params.connectionId!);
       return json(result);
