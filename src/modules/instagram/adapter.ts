@@ -150,6 +150,8 @@ function toProviderError(status: number, body: string): ProviderError {
 async function graphGet<T>(ctx: ProviderCtx, path: string, fields: string[]): Promise<T> {
   const url = `${GRAPH_BASE}/${ctx.apiVersion}/${path}?fields=${fields.join(",")}&access_token=${encodeURIComponent(ctx.accessToken)}`;
   const res = await httpFetch(url, { method: "GET" }, { timeoutMs: 15000 });
+  // TEMP diagnostic — remove once the account-id resolution bug is confirmed fixed.
+  log.info("graphGet raw response", { path, status: res.status, body: res.body.slice(0, 500) });
   return handleGraphResponse<T>(res.status, res.body, url);
 }
 

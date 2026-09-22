@@ -78,8 +78,6 @@ export async function GET(req: NextRequest) {
       tokenExpiresAt,
       meta: { followers: account.followersCount },
     });
-    // Clean up any stale placeholder rows.
-    await prisma.socialConnection.deleteMany({ where: { workspaceId, externalAccountId: "pending" } });
 
     await audit({
       workspaceId,
