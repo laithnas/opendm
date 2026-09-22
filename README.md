@@ -159,13 +159,17 @@ OpenDM uses Instagram's official API. No scraping, no passwords, no browser
 automation.
 
 1. Create a free **Business** app at <https://developers.facebook.com/apps>.
-2. Add the **Instagram** product.
-3. Put the app ID and secret in `.env` (`META_APP_ID`, `META_APP_SECRET`,
-   `META_VERIFY_TOKEN`).
-4. Set up the webhook with the callback
+2. Add the **"Manage messaging & content on Instagram"** use case, then open
+   its **Customize** page — it has its own **Instagram App ID/Secret**,
+   separate from the app's main one. Use those in `.env` (`META_APP_ID`,
+   `META_APP_SECRET`, `META_VERIFY_TOKEN`). This part has a few sharp edges
+   (a second redirect-URI field, an activation step, an exact scope list) —
+   **[docs/meta-setup.md](docs/meta-setup.md) §1 walks through all of it in
+   order; read it before doing this step**, it will save you real time.
+3. Set up the webhook with the callback
    `https://your-host/api/webhooks/instagram` and the fields `comments` and
    `messaging`.
-5. In the app, go to **Settings, Connections** and click
+4. In the app, go to **Settings, Connections** and click
    **Connect real Instagram**.
 
 A few honest notes about Instagram's rules, because OpenDM respects them

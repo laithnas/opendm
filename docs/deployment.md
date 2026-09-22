@@ -40,6 +40,20 @@ expected to run on a PaaS (Vercel/Railway/Fly) or a VM.
   (everything enqueues; nothing executes) until the worker is up.
 - Webhook endpoint must be publicly reachable; configure the Full-Stack
   (not serverless-edge) runtime.
+- **Disable Vercel's Deployment Protection ("Vercel Authentication"/SSO
+  Protection)** on the project (Settings → Deployment Protection). It's on
+  by default for new projects and sits in front of the app at the platform
+  level — it rejects POST requests outright (`405`, no useful body) instead
+  of showing its own login, which is very easy to mistake for a bug in the
+  app itself. The app has its own auth; you don't want two layers.
+- **Using Neon:** don't run `prisma migrate deploy` as part of the Vercel
+  build command. Migrations need a Postgres advisory lock, which doesn't
+  reliably work over Neon's pooled (pgbouncer) connection *or* over the
+  "unpooled" one from a cold Vercel build machine — both can hit
+  `P1002 ... Timed out trying to acquire a postgres advisory lock` well
+  within Prisma's fixed lock-acquire timeout. Run migrations separately
+  (locally against `DATABASE_URL`, or via a one-off script) before or after
+  deploying, not inside `buildCommand`.
 
 ## Systemd example (single VM)
 
