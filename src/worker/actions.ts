@@ -49,8 +49,23 @@ export async function processActionJob(data: ActionJobData): Promise<void> {
         }
         if (!connection) throw new Error("no connected social account");
         const provider = getSocialProvider(connection.provider.toLowerCase());
+        // A commenter who never messaged the account can only be reached with
+        // a comment private reply (recipient.comment_id), once per comment.
+        // Later steps and contacts already in a conversation use their user id.
+        const trigger = (execution.triggerPayload ?? {}) as { kind?: string; commentId?: string | null };
+        const alreadyDmed = await prisma.executionStep.count({
+          where: {
+            executionId: execution.id,
+            id: { not: step.id },
+            actionType: { in: ["SEND_DM", "SEND_LINK"] },
+            status: "COMPLETED",
+          },
+        });
+        const privateReplyTo =
+          trigger.kind === "COMMENT" && trigger.commentId && !contactConv && alreadyDmed === 0 ? trigger.commentId : undefined;
         const result = await provider.sendDm(providerCtx(connection), {
           externalId: execution.contact?.externalId ?? "",
+          commentId: privateReplyTo,
         }, {
           text: payload.text ?? "",
           quickReplies: payload.ctaButtons?.map((b) => ({ title: b.title, payload: b.payload ?? b.title })),

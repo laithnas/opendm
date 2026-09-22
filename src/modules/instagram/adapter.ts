@@ -6,7 +6,9 @@ import type {
   OutboundMessageInput,
   OutboundMessageResult,
   ProviderAccountInfo,
+  ProviderComment,
   ProviderCtx,
+  ProviderMedia,
   PublicReplyInput,
   PublicReplyResult,
   SocialProvider,
@@ -33,7 +35,7 @@ export class InstagramProvider implements SocialProvider {
   };
 
   /** Send a private reply (DM) to a recipient or to a comment author. */
-  async sendDm(ctx: ProviderCtx, to: { externalId: string }, input: OutboundMessageInput): Promise<OutboundMessageResult> {
+  async sendDm(ctx: ProviderCtx, to: { externalId: string; commentId?: string }, input: OutboundMessageInput): Promise<OutboundMessageResult> {
     const message: Record<string, unknown> = { text: input.text.slice(0, 1000) };
     if (input.quickReplies?.length) {
       message.quick_replies = input.quickReplies.map((qr) => ({
@@ -43,7 +45,9 @@ export class InstagramProvider implements SocialProvider {
       }));
     }
     const body = {
-      recipient: { id: to.externalId },
+      // Comment private reply: recipient is the comment id. Plain user-id
+      // recipients only work once the user has messaged the account.
+      recipient: to.commentId ? { comment_id: to.commentId } : { id: to.externalId },
       message,
     };
     const res = await graphPost<{ message_id?: string }>(ctx, `${ctx.connection.externalAccountId}/messages`, body);
@@ -76,6 +80,45 @@ export class InstagramProvider implements SocialProvider {
   parseWebhook(payload: unknown) {
     return parseInstagramWebhook(payload);
   }
+
+  async listMedia(ctx: ProviderCtx, opts: { limit: number }): Promise<ProviderMedia[]> {
+    const rows = await graphList<{
+      id: string;
+      caption?: string;
+      permalink?: string;
+      timestamp?: string;
+      comments_count?: number;
+    }>(ctx, `${ctx.connection.externalAccountId}/media`, ["id", "caption", "permalink", "timestamp", "comments_count"], opts.limit);
+    return rows.map((m) => ({
+      id: m.id,
+      caption: m.caption ?? null,
+      permalink: m.permalink ?? null,
+      timestamp: m.timestamp ?? null,
+      commentsCount: m.comments_count ?? null,
+    }));
+  }
+
+  async listComments(ctx: ProviderCtx, mediaId: string, opts: { limit: number }): Promise<ProviderComment[]> {
+    const owner = ctx.connection.username?.toLowerCase() ?? "";
+    const rows = await graphList<{
+      id: string;
+      text?: string;
+      username?: string;
+      timestamp?: string;
+      from?: { id?: string; username?: string };
+      replies?: { data?: { id: string; username?: string; from?: { id?: string } }[] };
+    }>(ctx, `${mediaId}/comments`, ["id", "text", "username", "timestamp", "from", "replies{id,username,from}"], opts.limit);
+    return rows.map((c) => ({
+      id: c.id,
+      text: c.text ?? "",
+      username: c.username ?? c.from?.username,
+      fromId: c.from?.id,
+      timestamp: c.timestamp ?? null,
+      repliedByOwner: (c.replies?.data ?? []).some(
+        (r) => (owner && r.username?.toLowerCase() === owner) || r.from?.id === ctx.connection.externalAccountId,
+      ),
+    }));
+  }
 }
 
 // ── Transport helpers ─────────────────────────────────────────────────────
@@ -102,6 +145,20 @@ async function graphGet<T>(ctx: ProviderCtx, path: string, fields: string[]): Pr
   const url = `${GRAPH_BASE}/${ctx.apiVersion}/${path}?fields=${fields.join(",")}&access_token=${encodeURIComponent(ctx.accessToken)}`;
   const res = await httpFetch(url, { method: "GET" }, { timeoutMs: 15000 });
   return handleGraphResponse<T>(res.status, res.body, url);
+}
+
+/** GET a paged edge, following `paging.next` until `limit` rows are collected. */
+async function graphList<T>(ctx: ProviderCtx, path: string, fields: string[], limit: number): Promise<T[]> {
+  const out: T[] = [];
+  let url: string | null =
+    `${GRAPH_BASE}/${ctx.apiVersion}/${path}?fields=${fields.join(",")}&limit=${Math.min(limit, 50)}&access_token=${encodeURIComponent(ctx.accessToken)}`;
+  while (url && out.length < limit) {
+    const res = await httpFetch(url, { method: "GET" }, { timeoutMs: 15000 });
+    const page: { data?: T[]; paging?: { next?: string } } = handleGraphResponse(res.status, res.body, url);
+    out.push(...(page.data ?? []));
+    url = page.paging?.next ?? null;
+  }
+  return out.slice(0, limit);
 }
 
 async function graphPost<T>(ctx: ProviderCtx, path: string, body: unknown): Promise<T> {

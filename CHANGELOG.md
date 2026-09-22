@@ -8,6 +8,16 @@ All notable changes to this project are documented here. Format based on
 
 ### Added
 
+- **Run on existing comments**: backfill a comment automation over comments
+  that already exist on your posts and reels. Preview first, skips comments
+  you already replied to, idempotent, respects trigger keywords/conditions.
+
+### Fixed
+
+- Comment-triggered DMs now use Instagram private replies
+  (`recipient.comment_id`); the previous user-id recipient is rejected by Meta
+  for people who never messaged the account.
+
 - **`npm run init`** — one-command onboarding: generates `.env` with random
   secrets, starts Postgres + Redis (docker compose), applies migrations,
   optional `--seed` demo workspace, prints next steps.

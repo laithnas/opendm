@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowDown, MousePointerClick, MessageSquare, CornerDownRight, Filter, MessageSquareText, Link2, SquarePen,
-  Tag, Globe, Clock3, Plus, Trash2, GripVertical, Zap, TestTube2, Save, ArrowLeft, Download, Sparkles,
+  Tag, Globe, Clock3, Plus, Trash2, GripVertical, Zap, TestTube2, Save, ArrowLeft, Download, Sparkles, History,
 } from "lucide-react";
 import { api, getActiveWorkspace } from "@/lib/client";
 import { StatusBadge, PageHeader, Toggle, Spinner, useToast, Modal } from "@/components/ui/ui";
@@ -93,6 +93,14 @@ export default function BuilderPage() {
   const [loaded, setLoaded] = useState(!editing);
   const [showAddAction, setShowAddAction] = useState(false);
   const [showAddCondition, setShowAddCondition] = useState(false);
+  const [backfill, setBackfill] = useState<{
+    phase: "scanning" | "preview" | "sending" | "done" | "error";
+    result?: {
+      postsScanned: number; commentsScanned: number; alreadyReplied: number; notMatching: number;
+      alreadyProcessed: number; eligible: number; eligibleDmable: number; queued: number;
+    };
+    error?: string;
+  } | null>(null);
   const [sim, setSim] = useState<{
     phase: "saved" | "queued" | "running" | "done" | "error";
     eventId?: string;
@@ -267,6 +275,19 @@ export default function BuilderPage() {
     }
   };
 
+  const runBackfill = async (dryRun: boolean) => {
+    setBackfill((p) => ({ phase: dryRun ? "scanning" : "sending", result: p?.result }));
+    try {
+      const res = await api<NonNullable<typeof backfill>["result"] & { ok: boolean }>(
+        `/api/workspaces/${ws}/automations/${params.id}/backfill`,
+        { method: "POST", body: { dryRun } },
+      );
+      setBackfill({ phase: dryRun ? "preview" : "done", result: res });
+    } catch (e) {
+      setBackfill({ phase: "error", error: e instanceof Error ? e.message : "Backfill failed" });
+    }
+  };
+
   const aiGenerate = async () => {
     if (!aiSituation.trim()) return;
     setAiBusy(true);
@@ -360,6 +381,11 @@ export default function BuilderPage() {
             <button className="btn-secondary" onClick={runSimulate} disabled={sim?.phase === "queued" || sim?.phase === "running"}>
               <TestTube2 className="h-4 w-4" /> {sim?.phase === "queued" || sim?.phase === "running" ? "Running…" : "Simulate"}
             </button>
+            {editing && trigger === "COMMENT" && status === "ACTIVE" && (
+              <button className="btn-secondary" onClick={() => { setBackfill({ phase: "scanning" }); void runBackfill(true); }}>
+                <History className="h-4 w-4" /> Run on existing comments
+              </button>
+            )}
             <button className="btn-secondary" onClick={() => setShowAi(true)}>
               <Sparkles className="h-4 w-4 text-accent" /> AI
             </button>
@@ -511,6 +537,49 @@ export default function BuilderPage() {
             </button>
           ))}
         </div>
+      </Modal>
+
+      {/* Run on existing comments */}
+      <Modal open={Boolean(backfill)} onClose={() => setBackfill(null)} title="Run on existing comments">
+        {!backfill || backfill.phase === "scanning" ? (
+          <p className="flex items-center gap-2 text-sm text-muted-light dark:text-muted-dark"><Spinner /> Scanning your posts for comments that were never answered…</p>
+        ) : backfill.phase === "error" ? (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-600 dark:text-rose-400">{backfill.error}</div>
+        ) : (
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ["Posts scanned", backfill.result?.postsScanned],
+                ["Comments scanned", backfill.result?.commentsScanned],
+                ["Already replied (skipped)", backfill.result?.alreadyReplied],
+                ["Didn't match this automation", backfill.result?.notMatching],
+                ["Already processed", backfill.result?.alreadyProcessed],
+                [backfill.phase === "done" ? "Queued now" : "Will run on", backfill.phase === "done" ? backfill.result?.queued : backfill.result?.eligible],
+              ].map(([label, n]) => (
+                <div key={String(label)} className="rounded-xl border border-line-light p-3 dark:border-line-dark">
+                  <div className="text-xl font-bold">{n ?? 0}</div>
+                  <div className="text-xs text-muted-light dark:text-muted-dark">{label}</div>
+                </div>
+              ))}
+            </div>
+            {(backfill.result?.eligible ?? 0) > (backfill.result?.eligibleDmable ?? 0) && (
+              <p className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+                Only {backfill.result?.eligibleDmable} of {backfill.result?.eligible} are inside Instagram&apos;s 7-day private-reply window.
+                Older comments still get the public reply, but Instagram will reject the DM for them.
+              </p>
+            )}
+            {backfill.phase === "preview" && (
+              <div className="flex justify-end gap-2">
+                <button className="btn-secondary" onClick={() => setBackfill(null)}>Cancel</button>
+                <button className="btn-primary" disabled={!backfill.result?.eligible} onClick={() => void runBackfill(false)}>
+                  Run on {backfill.result?.eligible ?? 0} comments
+                </button>
+              </div>
+            )}
+            {backfill.phase === "sending" && <p className="flex items-center gap-2 text-muted-light dark:text-muted-dark"><Spinner /> Queueing…</p>}
+            {backfill.phase === "done" && <p className="text-emerald-600 dark:text-emerald-400">Queued. Watch progress on the Executions page; sends are rate-limited to protect your account.</p>}
+          </div>
+        )}
       </Modal>
 
       {/* Live simulation view */}

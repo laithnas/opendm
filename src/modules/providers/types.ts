@@ -24,6 +24,26 @@ export interface OutboundMessageResult {
   externalMessageId?: string;
 }
 
+/** A published post (feed post, reel, carousel) of the connected account. */
+export interface ProviderMedia {
+  id: string;
+  caption?: string | null;
+  permalink?: string | null;
+  timestamp?: string | null;
+  commentsCount?: number | null;
+}
+
+/** A top-level comment on a post, with whether the account already answered. */
+export interface ProviderComment {
+  id: string;
+  text: string;
+  username?: string;
+  fromId?: string;
+  timestamp?: string | null;
+  /** True when the connected account already replied publicly. */
+  repliedByOwner: boolean;
+}
+
 export interface PublicReplyInput {
   mediaId: string;
   commentId: string;
@@ -60,10 +80,19 @@ export interface NormalizedEvent {
 export interface SocialProvider {
   kind: ProviderKind;
   displayName: string;
-  sendDm(ctx: ProviderCtx, to: { externalId: string }, input: OutboundMessageInput): Promise<OutboundMessageResult>;
+  /**
+   * `commentId` sends a comment private reply (allowed once per comment, within
+   * 7 days of it being posted) — the only way to DM someone who never messaged
+   * the account first.
+   */
+  sendDm(ctx: ProviderCtx, to: { externalId: string; commentId?: string }, input: OutboundMessageInput): Promise<OutboundMessageResult>;
   sendPublicReply(ctx: ProviderCtx, input: PublicReplyInput): Promise<PublicReplyResult>;
   fetchAccount(ctx: ProviderCtx): Promise<ProviderAccountInfo>;
   parseWebhook(payload: unknown): NormalizedEvent[];
+  /** Optional: enumerate recent posts (used to backfill existing comments). */
+  listMedia?(ctx: ProviderCtx, opts: { limit: number }): Promise<ProviderMedia[]>;
+  /** Optional: enumerate top-level comments of one post. */
+  listComments?(ctx: ProviderCtx, mediaId: string, opts: { limit: number }): Promise<ProviderComment[]>;
   capabilities: {
     ctaButtons: boolean;
     storyReplies: boolean;

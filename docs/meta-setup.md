@@ -61,6 +61,8 @@ resolves the Instagram business account id, encrypts the token with
 | --- | --- |
 | **Messaging window** — business DMs only within 7 days of the user's last message | The inbox computes the window verdict and blocks replies with a clear reason; automation DM actions skip with `reason` instead of failing cryptically |
 | **Comment private replies** | Sent via the messaging API to the comment author; Meta enforces its own 7-day comment window — rejections surface as step errors |
+| **Comment → first DM** | The first DM to a commenter who never messaged you is sent as a private reply (`recipient.comment_id`), once per comment. Plain user-id recipients only work after the user messages you first |
+| **Existing comments** | "Run on existing comments" (automation page, comment triggers) scans your recent posts/reels, skips comments you already replied to, previews the count, then runs the automation. Idempotent: running it twice never double-sends. Comments older than 7 days can't receive the DM |
 | **Public comment replies** | POST `/{comment-id}/replies` — shown in-step as PUBLIC_REPLY |
 | **CTA buttons (quick replies)** | up to 3 per DM in this build (platform allows more; configurable cap) |
 | **Follower status** | only available with advanced access (`ig_manage_comments` + public content). Without it, the followers-only condition **fails closed** with an explanatory reason |
