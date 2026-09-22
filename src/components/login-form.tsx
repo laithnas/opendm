@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ArrowRight, Zap } from "lucide-react";
-import { api, markDemoMode } from "@/lib/client";
+import { api, markDemoMode, setCsrfToken } from "@/lib/client";
 import { product } from "@/config";
 
 export default function LoginForm() {
@@ -17,10 +17,11 @@ export default function LoginForm() {
   const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
-    api<{ demoMode: boolean }>("/api/auth/status", { skipAuthRedirect: true })
+    api<{ demoMode: boolean; csrfToken: string | null }>("/api/auth/status", { skipAuthRedirect: true })
       .then((res) => {
         setDemoMode(Boolean(res.demoMode));
         markDemoMode(Boolean(res.demoMode));
+        if (res.csrfToken) setCsrfToken(res.csrfToken);
       })
       .catch(() => undefined);
   }, []);
