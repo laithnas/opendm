@@ -186,6 +186,10 @@ export function instagramOAuthUrl(workspaceId: string, userId: string): string {
     scope: OAUTH_SCOPES,
     state,
     response_type: "code",
+    // Required — without it Instagram rejects the whole request as an
+    // "Invalid platform app" (confirmed empirically: Meta's own sample
+    // embed URL for this exact app only differs by this one param).
+    force_reauth: "true",
   });
   // Instagram API with Instagram Login (direct login, no Facebook Page
   // required) — its authorize/token/graph hosts are instagram.com, not
