@@ -45,3 +45,4 @@ logs/
 
 # audit clone (reference material only, never committed)
 /_audit
+.vps-creds.txt
