@@ -128,23 +128,15 @@ export async function checkConnectionHealth(workspaceId: string, connectionId: s
   }
 }
 
-/**
- * Proactive token refresh for Instagram long-lived tokens (60 days).
- * Requires META_APP_ID + META_APP_SECRET. When absent we surface "refresh
- * manually" guidance instead of inventing one.
- */
+/** Proactive refresh for Instagram long-lived tokens (60 days). */
 export async function refreshTokenIfNeeded(workspaceId: string, connectionId: string) {
   const connection = await getConnection(workspaceId, connectionId);
-  if (!connection.refreshTokenEnc) return { refreshed: false, reason: "no refresh token stored" };
-  if (!env.META_APP_ID || !env.META_APP_SECRET) {
-    return {
-      refreshed: false,
-      reason: "Meta app credentials not configured — add META_APP_ID and META_APP_SECRET to enable automatic token refresh",
-    };
-  }
+  if (!connection.accessTokenEnc) return { refreshed: false, reason: "no token stored" };
   const current = decryptSecret(connection.accessTokenEnc);
   try {
-    const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/oauth/access_token?grant_type=fb_exchange_token&client_id=${env.META_APP_ID}&client_secret=${env.META_APP_SECRET}&fb_exchange_token=${encodeURIComponent(current)}`;
+    // Instagram long-lived tokens refresh themselves — no separate refresh
+    // token or app credentials involved, just the current token as auth.
+    const url = `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(current)}`;
     const res = await httpFetch(url, { method: "GET" }, { timeoutMs: 15000 });
     if (!res.ok) throw new AppError(`Token refresh failed: ${res.status}`, 502, "TOKEN_REFRESH_FAILED");
     const data = JSON.parse(res.body) as { access_token?: string; expires_in?: number };
@@ -169,7 +161,7 @@ export async function refreshTokenIfNeeded(workspaceId: string, connectionId: st
   }
 }
 
-// ── Instagram OAuth (Meta Login for Business) ─────────────────────────────
+// ── Instagram OAuth (Instagram API with Instagram Login) ──────────────────
 
 const OAUTH_SCOPES = [
   "instagram_business_basic",
@@ -195,7 +187,11 @@ export function instagramOAuthUrl(workspaceId: string, userId: string): string {
     state,
     response_type: "code",
   });
-  return `https://www.facebook.com/${env.META_GRAPH_VERSION}/dialog/oauth?${params.toString()}`;
+  // Instagram API with Instagram Login (direct login, no Facebook Page
+  // required) — its authorize/token/graph hosts are instagram.com, not
+  // facebook.com. The instagram_business_* scopes above only exist on
+  // this flow.
+  return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
 }
 
 export interface InstagramOauthResult {
@@ -217,29 +213,32 @@ export async function exchangeInstagramCode(code: string, redirectUri: string) {
   if (!env.META_APP_ID || !env.META_APP_SECRET) {
     throw new AppError("Meta credentials missing", 400, "META_NOT_CONFIGURED");
   }
-  const shortParams = new URLSearchParams({
+  // 1) Short-lived token: POST form-encoded to api.instagram.com (not a
+  // graph.facebook.com GET — Instagram Login's own token endpoint).
+  const shortBody = new URLSearchParams({
     client_id: env.META_APP_ID,
     client_secret: env.META_APP_SECRET,
+    grant_type: "authorization_code",
     redirect_uri: redirectUri,
     code,
   });
   const shortRes = await httpFetch(
-    `https://graph.facebook.com/${env.META_GRAPH_VERSION}/oauth/access_token?${shortParams.toString()}`,
-    { method: "GET" },
+    "https://api.instagram.com/oauth/access_token",
+    { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: shortBody.toString() },
     { timeoutMs: 15000 },
   );
   if (!shortRes.ok) throw new AppError(`OAuth code exchange failed: ${shortRes.status}`, 502, "OAUTH_FAILED");
-  const short = JSON.parse(shortRes.body) as { access_token?: string; expires_in?: number };
+  const short = JSON.parse(shortRes.body) as { access_token?: string };
   if (!short.access_token) throw new AppError("OAuth returned no token", 502, "OAUTH_FAILED");
 
+  // 2) Exchange for a 60-day long-lived token via graph.instagram.com.
   const longParams = new URLSearchParams({
-    grant_type: "fb_exchange_token",
-    client_id: env.META_APP_ID,
+    grant_type: "ig_exchange_token",
     client_secret: env.META_APP_SECRET,
-    fb_exchange_token: short.access_token,
+    access_token: short.access_token,
   });
   const longRes = await httpFetch(
-    `https://graph.facebook.com/${env.META_GRAPH_VERSION}/oauth/access_token?${longParams.toString()}`,
+    `https://graph.instagram.com/access_token?${longParams.toString()}`,
     { method: "GET" },
     { timeoutMs: 15000 },
   );

@@ -18,7 +18,9 @@ import { parseInstagramWebhook } from "@/modules/instagram/webhook";
 // Official Meta Graph API client for Instagram. No scraping, no browser
 // automation, no passwords — only documented endpoints with user tokens.
 
-const GRAPH_BASE = "https://graph.facebook.com";
+// Instagram API with Instagram Login: every call, not just OAuth, goes
+// through graph.instagram.com — not graph.facebook.com.
+const GRAPH_BASE = "https://graph.instagram.com";
 
 export class InstagramProvider implements SocialProvider {
   kind = "instagram" as const;
@@ -62,15 +64,19 @@ export class InstagramProvider implements SocialProvider {
   }
 
   async fetchAccount(ctx: ProviderCtx): Promise<ProviderAccountInfo> {
+    // "me" always resolves to the token's own account — works both right
+    // after OAuth (no known id yet) and for later health checks. Note the
+    // id field is `user_id` here, not `id` (this is Instagram Login's own
+    // API, distinct from the Facebook-Page-mediated Instagram Graph API).
     const res = await graphGet<{
-      id: string;
+      user_id: string;
       username: string;
       name?: string;
       followers_count?: number;
       profile_picture_url?: string;
-    }>(ctx, ctx.connection.externalAccountId, ["id", "username", "name", "followers_count", "profile_picture_url"]);
+    }>(ctx, "me", ["user_id", "username", "name", "followers_count", "profile_picture_url"]);
     return {
-      externalId: String(res.id),
+      externalId: String(res.user_id),
       username: res.username,
       displayName: res.name ?? res.username,
       followersCount: res.followers_count ?? null,
