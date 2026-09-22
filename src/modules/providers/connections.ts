@@ -107,21 +107,32 @@ export async function checkConnectionHealth(workspaceId: string, connectionId: s
     await provider.fetchAccount(ctx);
     // Re-assert the webhook subscription on every health check — cheap, and
     // it's the self-service fix for "connected but comments aren't firing".
+    let webhookSubscribed: boolean | null = null;
     if (provider.subscribeToWebhooks) {
       try {
         await provider.subscribeToWebhooks(ctx);
+        webhookSubscribed = true;
       } catch (subErr) {
+        webhookSubscribed = false;
         log.warn("webhook re-subscribe failed during health check", {
           connectionId: connection.id,
           error: subErr instanceof Error ? subErr.message : String(subErr),
         });
       }
     }
+    if (webhookSubscribed && provider.getWebhookSubscriptionStatus) {
+      try {
+        const status = await provider.getWebhookSubscriptionStatus(ctx);
+        webhookSubscribed = status.subscribed;
+      } catch {
+        // Non-fatal — the subscribe call itself already succeeded above.
+      }
+    }
     await prisma.socialConnection.update({
       where: { id: connection.id },
       data: { status: "ACTIVE", lastError: null, lastCheckedAt: new Date() },
     });
-    return { ok: true, status: "ACTIVE" as const };
+    return { ok: true, status: "ACTIVE" as const, webhookSubscribed };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const looksExpired = /token|expired|session/i.test(message) && /expired|invalid|revoked|reauth/i.test(message);

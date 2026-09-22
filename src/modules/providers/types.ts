@@ -104,6 +104,8 @@ export interface SocialProvider {
    * config looks correct. Call after every successful connect.
    */
   subscribeToWebhooks?(ctx: ProviderCtx): Promise<{ subscribed: string[] }>;
+  /** Optional: non-secret check of current subscription status. */
+  getWebhookSubscriptionStatus?(ctx: ProviderCtx): Promise<{ subscribed: boolean; raw: unknown }>;
   capabilities: {
     ctaButtons: boolean;
     storyReplies: boolean;

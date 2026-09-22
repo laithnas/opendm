@@ -102,6 +102,13 @@ export class InstagramProvider implements SocialProvider {
     return { subscribed: ["comments", "messages"] };
   }
 
+  /** Non-secret status check: which apps/fields this account is currently subscribed to. */
+  async getWebhookSubscriptionStatus(ctx: ProviderCtx): Promise<{ subscribed: boolean; raw: unknown }> {
+    const res = await graphGet<{ data?: { subscribed_fields?: string[] }[] }>(ctx, "me/subscribed_apps", []);
+    const fields = res.data?.[0]?.subscribed_fields ?? [];
+    return { subscribed: fields.includes("comments"), raw: res };
+  }
+
   async listMedia(ctx: ProviderCtx, opts: { limit: number }): Promise<ProviderMedia[]> {
     const rows = await graphList<{
       id: string;
