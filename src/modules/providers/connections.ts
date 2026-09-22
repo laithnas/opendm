@@ -103,11 +103,20 @@ export async function checkConnectionHealth(workspaceId: string, connectionId: s
   try {
     const token = connection.accessTokenEnc ? decryptSecret(connection.accessTokenEnc) : null;
     if (!token) throw new Error("token missing");
-    await provider.fetchAccount({
-      connection,
-      accessToken: token,
-      apiVersion: env.META_GRAPH_VERSION,
-    });
+    const ctx = { connection, accessToken: token, apiVersion: env.META_GRAPH_VERSION };
+    await provider.fetchAccount(ctx);
+    // Re-assert the webhook subscription on every health check — cheap, and
+    // it's the self-service fix for "connected but comments aren't firing".
+    if (provider.subscribeToWebhooks) {
+      try {
+        await provider.subscribeToWebhooks(ctx);
+      } catch (subErr) {
+        log.warn("webhook re-subscribe failed during health check", {
+          connectionId: connection.id,
+          error: subErr instanceof Error ? subErr.message : String(subErr),
+        });
+      }
+    }
     await prisma.socialConnection.update({
       where: { id: connection.id },
       data: { status: "ACTIVE", lastError: null, lastCheckedAt: new Date() },

@@ -106,6 +106,7 @@ subsequent Graph call for this connection also goes to
 | Connect succeeds but the account shows as literal `pending`/`@pending` | Symptom of a now-fixed bug: the mock provider and real adapter shared a registry key and the mock silently won every lookup. Already fixed — if you see this on current code, `getSocialProvider("instagram")` is not returning `InstagramProvider`; check `src/modules/providers/registry.ts` | — |
 | OAuth succeeds, then a 404 | A redirect target that doesn't exist | Already fixed (`/app/settings`, not `/app/settings/connections`) — if you see this on current code, check for a stale redirect path |
 | Real account added as an Instagram Tester still can't complete login | Invite sent but not accepted | Accept it on Instagram itself: Settings → Apps and Websites → Tester Invites (§1.6) |
+| Account connects fine, webhook test succeeds, but real new comments never trigger anything | The app-level webhook config (§3) says what an opted-in account's events look like — it does not opt any account in. Each connected account must separately call `POST /me/subscribed_apps?subscribed_fields=comments,messages` with its own token | Already automatic on every new connect and on every "check health" click, so this shouldn't recur — if it does on current code, check `subscribeToWebhooks` is being called and its response actually has `success: true` |
 
 - **Token refresh:** when `META_APP_ID` + `META_APP_SECRET` are set, the
   refresh endpoint exchanges the current token for a new one before expiry.

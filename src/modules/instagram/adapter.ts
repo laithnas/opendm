@@ -87,6 +87,21 @@ export class InstagramProvider implements SocialProvider {
     return parseInstagramWebhook(payload);
   }
 
+  /**
+   * Opt this account into webhook delivery. Without this call Meta never
+   * sends comment/message events for the account, even though the app-level
+   * webhook (Callback URL + subscribed fields) is fully configured — the
+   * app-level config only says what an opted-in account's events look like,
+   * not which accounts are opted in.
+   */
+  async subscribeToWebhooks(ctx: ProviderCtx): Promise<{ subscribed: string[] }> {
+    const res = await graphPost<{ success?: boolean }>(ctx, "me/subscribed_apps", {
+      subscribed_fields: "comments,messages",
+    });
+    if (!res.success) throw new ProviderError("Webhook subscription was not confirmed by Meta", "SUBSCRIBE_FAILED");
+    return { subscribed: ["comments", "messages"] };
+  }
+
   async listMedia(ctx: ProviderCtx, opts: { limit: number }): Promise<ProviderMedia[]> {
     const rows = await graphList<{
       id: string;

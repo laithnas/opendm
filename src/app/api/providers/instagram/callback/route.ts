@@ -79,15 +79,31 @@ export async function GET(req: NextRequest) {
       meta: { followers: account.followersCount },
     });
 
+    // Opt this account into webhook delivery — required separately from the
+    // app-level webhook config, or Meta silently never delivers its events.
+    let subscribed = false;
+    try {
+      if (provider.subscribeToWebhooks) {
+        await provider.subscribeToWebhooks({ connection: placeholder, accessToken, apiVersion: env.META_GRAPH_VERSION });
+        subscribed = true;
+      }
+    } catch (subErr) {
+      log.error("instagram webhook subscription failed", {
+        workspaceId,
+        accountId: account.externalId,
+        error: subErr instanceof Error ? subErr.message : String(subErr),
+      });
+    }
+
     await audit({
       workspaceId,
       actorUserId: userId,
       action: "connection.added",
       entityType: "connection",
       entityId: account.externalId,
-      meta: { provider: "instagram", oauth: true, username: account.username },
+      meta: { provider: "instagram", oauth: true, username: account.username, webhookSubscribed: subscribed },
     });
-    log.info("instagram oauth connected", { workspaceId, accountId: account.externalId });
+    log.info("instagram oauth connected", { workspaceId, accountId: account.externalId, webhookSubscribed: subscribed });
     return NextResponse.redirect(new URL("/app/settings?connected=1", env.APP_URL));
   } catch (err) {
     log.error("instagram oauth failed", { error: err instanceof Error ? err.message : String(err) });

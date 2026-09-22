@@ -53,4 +53,17 @@ describe("InstagramProvider", () => {
     expect(rows.map((r) => r.id)).toEqual(["m1", "m2", "m3"]);
     expect(httpFetch).toHaveBeenCalledTimes(2);
   });
+
+  it("subscribes the account to comments+messages webhooks", async () => {
+    httpFetch.mockResolvedValue(ok({ success: true }));
+    const result = await new InstagramProvider().subscribeToWebhooks!(ctx);
+    expect(httpFetch.mock.calls[0]![0]).toContain("me/subscribed_apps");
+    expect(sentBody().subscribed_fields).toBe("comments,messages");
+    expect(result).toEqual({ subscribed: ["comments", "messages"] });
+  });
+
+  it("throws when Meta doesn't confirm the subscription", async () => {
+    httpFetch.mockResolvedValue(ok({ success: false }));
+    await expect(new InstagramProvider().subscribeToWebhooks!(ctx)).rejects.toThrow(/not confirmed/);
+  });
 });

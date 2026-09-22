@@ -96,6 +96,14 @@ export interface SocialProvider {
   listMedia?(ctx: ProviderCtx, opts: { limit: number }): Promise<ProviderMedia[]>;
   /** Optional: enumerate top-level comments of one post. */
   listComments?(ctx: ProviderCtx, mediaId: string, opts: { limit: number }): Promise<ProviderComment[]>;
+  /**
+   * Optional: subscribe this specific connected account to the app's
+   * webhooks. Configuring the app-level webhook (callback URL + fields) is
+   * necessary but NOT sufficient — each connected account must separately
+   * opt in, or Meta never delivers events for it even though the app-level
+   * config looks correct. Call after every successful connect.
+   */
+  subscribeToWebhooks?(ctx: ProviderCtx): Promise<{ subscribed: string[] }>;
   capabilities: {
     ctaButtons: boolean;
     storyReplies: boolean;
