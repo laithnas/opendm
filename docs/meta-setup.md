@@ -21,7 +21,6 @@ The product requests these OAuth scopes during "Connect real Instagram":
 | `instagram_business_basic` | read account identity |
 | `instagram_business_manage_messages` | send DMs, read conversations |
 | `instagram_business_manage_comments` | read comments, reply publicly |
-| `business_management` | link the business account |
 
 For live use Meta requires **App Review + Business Verification** for these
 advanced permissions. In Development mode with your own account as a tester,

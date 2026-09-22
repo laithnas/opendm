@@ -167,7 +167,10 @@ const OAUTH_SCOPES = [
   "instagram_business_basic",
   "instagram_business_manage_messages",
   "instagram_business_manage_comments",
-  "business_management",
+  // "business_management" was never a valid scope for this API (it's a
+  // Facebook Business Manager scope, not Instagram Login) — including it
+  // made Meta reject the whole authorize request as "Invalid platform app".
+  // Confirmed by diffing against this app's own working sample URL.
 ].join(",");
 
 export function instagramOAuthUrl(workspaceId: string, userId: string): string {
