@@ -69,6 +69,23 @@ export async function demoLogin(ctx?: { ip?: string; userAgent?: string }): Prom
   return createSession(user.id, ctx);
 }
 
+/**
+ * Single-operator deployments (SINGLE_USER_MODE=true): skip the magic-link
+ * screen and sign in directly as the configured owner email. Access control
+ * for that setup is the ACCESS_PASSWORD gate in front of the whole app, not
+ * per-user auth — this is never enabled on the public product.
+ */
+export async function ownerLogin(email: string, ctx?: { ip?: string; userAgent?: string }): Promise<string> {
+  const { createSession } = await import("@/auth/session");
+  const normalized = email.trim().toLowerCase();
+  const user = await prisma.user.upsert({
+    where: { email: normalized },
+    update: {},
+    create: { email: normalized, emailVerifiedAt: new Date() },
+  });
+  return createSession(user.id, ctx);
+}
+
 async function sendMagicLinkEmail(to: string, url: string): Promise<boolean> {
   try {
     const res = await httpFetch("https://api.resend.com/emails", {

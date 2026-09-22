@@ -28,6 +28,11 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(2),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(1000),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  // Single-operator deployments only (never set on the public product):
+  // skip the magic-link screen entirely and auto-sign in as this email.
+  // The ACCESS_PASSWORD gate is the real access control in that setup.
+  SINGLE_USER_MODE: z.enum(["true", "false"]).default("false"),
+  SINGLE_USER_EMAIL: z.string().optional().default(""),
 });
 
 export type Env = z.infer<typeof envSchema>;

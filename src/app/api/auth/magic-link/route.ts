@@ -42,5 +42,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=invalid_token", env.APP_URL));
   }
   setSessionCookie(result.sessionToken);
-  return NextResponse.redirect(new URL(safeRedirect(next, "/app/onboarding"), env.APP_URL));
+  return NextResponse.redirect(new URL(safeRedirect(next, "/onboarding"), env.APP_URL));
 }
