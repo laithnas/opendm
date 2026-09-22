@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const redirectUri = `${env.APP_URL}/api/providers/instagram/callback`;
 
   const fail = (message: string) =>
-    NextResponse.redirect(new URL(`/app/settings/connections?oauth_error=${encodeURIComponent(message)}`, env.APP_URL));
+    NextResponse.redirect(new URL(`/app/settings?oauth_error=${encodeURIComponent(message)}`, env.APP_URL));
 
   if (error) return fail(`Meta returned: ${error}`);
   if (!code || !state) return fail("Missing OAuth parameters");
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
       meta: { provider: "instagram", oauth: true, username: account.username },
     });
     log.info("instagram oauth connected", { workspaceId, accountId: account.externalId });
-    return NextResponse.redirect(new URL("/app/settings/connections?connected=1", env.APP_URL));
+    return NextResponse.redirect(new URL("/app/settings?connected=1", env.APP_URL));
   } catch (err) {
     log.error("instagram oauth failed", { error: err instanceof Error ? err.message : String(err) });
     return fail(err instanceof Error ? err.message.slice(0, 300) : "OAuth failed");

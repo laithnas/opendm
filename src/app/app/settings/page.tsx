@@ -35,6 +35,22 @@ export default function SettingsPage() {
   const [confirm, setConfirm] = useState<{ kind: "revoke" | "remove" | "revokeInvite"; id: string; label: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Surface the Instagram OAuth callback's result, then strip it from the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("oauth_error");
+    const connected = params.get("connected");
+    if (error) toast("error", `Instagram connection failed: ${error}`);
+    else if (connected) toast("success", "Instagram connected");
+    if (error || connected) {
+      params.delete("oauth_error");
+      params.delete("connected");
+      const qs = params.toString();
+      router.replace(`/app/settings${qs ? `?${qs}` : ""}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadConnections = () => {
     if (!ws) return;
     api<{ connections: Connection[] }>(`/api/workspaces/${ws}/settings`).then((r) => setConnections(r.connections));
