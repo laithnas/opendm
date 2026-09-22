@@ -59,6 +59,8 @@ export const queueEvents = {
 export interface IngestJobData {
   provider: string;
   workspaceId?: string; // resolved at processing time when absent
+  /** When set, only this automation runs for the event (simulate mode). */
+  onlyAutomationId?: string;
   /** Raw provider webhook envelope. */
   payload: unknown;
   receivedAt: string;

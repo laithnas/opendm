@@ -87,10 +87,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const sidebar = (
     <div className="flex h-full w-64 flex-col border-r border-line-light bg-surface-light dark:border-line-dark dark:bg-surface-dark">
-      <div className="flex items-center gap-2 px-5 py-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-xs font-black text-white">LF</div>
+      <div className="flex items-center gap-2.5 px-5 py-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-accent to-accent-dark font-display text-xs font-bold text-white shadow-glow">
+          OD
+        </div>
         <div>
-          <p className="text-sm font-bold leading-none">{product.name}</p>
+          <p className="font-display text-sm font-semibold leading-none tracking-tight">{product.name}</p>
           <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-light dark:text-muted-dark">{product.company}</p>
         </div>
       </div>
@@ -120,7 +122,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 font-display text-sm font-medium transition-colors ${
                 active ? "bg-accent/10 text-accent" : "text-muted-light hover:bg-black/5 hover:text-ink-light dark:text-muted-dark dark:hover:bg-white/5 dark:hover:text-ink-dark"
               }`}
             >
@@ -132,7 +134,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Link
           href="/app/settings"
           onClick={() => setSidebarOpen(false)}
-          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 font-display text-sm font-medium transition-colors ${
             pathname.startsWith("/app/settings")
               ? "bg-accent/10 text-accent"
               : "text-muted-light hover:bg-black/5 hover:text-ink-light dark:text-muted-dark dark:hover:bg-white/5 dark:hover:text-ink-dark"
@@ -173,8 +175,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Mobile top bar */}
         <div className="sticky top-0 z-40 flex items-center justify-between border-b border-line-light bg-surface-light px-4 py-3 md:hidden dark:border-line-dark dark:bg-surface-dark">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-[10px] font-black text-white">LF</div>
-            <span className="text-sm font-bold">{product.name}</span>
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-accent to-accent-dark font-display text-[10px] font-bold text-white">OD</div>
+            <span className="font-display text-sm font-semibold">{product.name}</span>
           </div>
           <button onClick={() => setSidebarOpen(true)} className="btn-ghost !p-1.5" aria-label="Open menu">
             <Menu className="h-5 w-5" />

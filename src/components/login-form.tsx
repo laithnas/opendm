@@ -52,7 +52,7 @@ export default function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-canvas-light px-4 dark:bg-canvas-dark">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-lg font-black text-white">LF</div>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-dark font-display text-lg font-bold text-white shadow-glow">OD</div>
           <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
           <p className="mt-1 text-sm text-muted-light dark:text-muted-dark">{product.tagline}</p>
         </div>

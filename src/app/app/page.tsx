@@ -22,6 +22,16 @@ interface DashboardData {
   failures: { id: string; automation: { name: string }; error: string | null; steps: { label: string; error: string | null }[] }[];
 }
 
+type Metric = "exec" | "dm" | "click";
+
+// Dedicated, well-separated hues per metric — used consistently across the
+// KPI tiles, chart bars, and legend so cross-filtering reads at a glance.
+const METRIC_COLOR: Record<Metric, { bar: string; ring: string; dot: string }> = {
+  exec: { bar: "bg-violet-500", ring: "ring-violet-500 border-violet-500", dot: "bg-violet-500" },
+  dm: { bar: "bg-accent", ring: "ring-accent border-accent", dot: "bg-accent" },
+  click: { bar: "bg-teal-500", ring: "ring-teal-500 border-teal-500", dot: "bg-teal-500" },
+};
+
 const TRIGGER_ICON: Record<string, React.ElementType> = {
   COMMENT: () => <span className="text-[10px]">💬</span>,
   DM: () => <span className="text-[10px]">✉️</span>,
@@ -36,6 +46,7 @@ export default function DashboardPage() {
   const [range, setRange] = useState("30");
   const [busyEvent, setBusyEvent] = useState<string | null>(null);
   const [lastEvent, setLastEvent] = useState<string | null>(null);
+  const [metric, setMetric] = useState<Metric | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,19 +149,50 @@ export default function DashboardPage() {
         <><Skeleton className="h-24 rounded-xl" /><Skeleton className="mt-4 h-72 rounded-xl" /></>
       ) : (
         <>
-          {/* KPI row */}
+          {/* KPI row — click a card to isolate that metric in the chart below */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <StatCard label="Triggers" value={totals?.executions.total ?? 0} sub={`${totals?.executions.completed ?? 0} completed`} />
-            <StatCard label="DMs sent" value={totals?.messages.sent ?? 0} sub={totals?.messages.failed ? `${totals.messages.failed} failed` : "no failures"} />
-            <StatCard label="Link clicks" value={totals?.links.clicks ?? 0} sub={`${totals?.links.uniqueClicks ?? 0} unique`} />
+            <StatCard
+              label="Triggers"
+              value={totals?.executions.total ?? 0}
+              sub={`${totals?.executions.completed ?? 0} completed`}
+              onClick={() => setMetric((m) => (m === "exec" ? null : "exec"))}
+              active={metric === "exec"}
+              dimmed={metric !== null && metric !== "exec"}
+              ringClass={METRIC_COLOR.exec.ring}
+            />
+            <StatCard
+              label="DMs sent"
+              value={totals?.messages.sent ?? 0}
+              sub={totals?.messages.failed ? `${totals.messages.failed} failed` : "no failures"}
+              onClick={() => setMetric((m) => (m === "dm" ? null : "dm"))}
+              active={metric === "dm"}
+              dimmed={metric !== null && metric !== "dm"}
+              ringClass={METRIC_COLOR.dm.ring}
+            />
+            <StatCard
+              label="Link clicks"
+              value={totals?.links.clicks ?? 0}
+              sub={`${totals?.links.uniqueClicks ?? 0} unique`}
+              onClick={() => setMetric((m) => (m === "click" ? null : "click"))}
+              active={metric === "click"}
+              dimmed={metric !== null && metric !== "click"}
+              ringClass={METRIC_COLOR.click.ring}
+            />
             <StatCard label="Conversations" value={totals?.conversations ?? 0} sub={`CTR ${pct(totals?.links.ctr)}`} />
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
             {/* Activity chart */}
             <div className="card card-pad lg:col-span-2">
-              <h3 className="mb-4 text-sm font-bold">Activity over time</h3>
-              <ActivityChart series={data.series} />
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-sm font-bold">Activity over time</h3>
+                {metric && (
+                  <button className="text-xs font-semibold text-muted-light hover:text-ink-light dark:text-muted-dark dark:hover:text-ink-dark" onClick={() => setMetric(null)}>
+                    Show all
+                  </button>
+                )}
+              </div>
+              <ActivityChart series={data.series} metric={metric} onToggleMetric={(m) => setMetric((cur) => (cur === m ? null : m))} />
             </div>
 
             {/* Funnel */}
@@ -246,7 +288,15 @@ function pct(n: number | null | undefined): string {
   return `${(n * 100).toFixed(1)}%`;
 }
 
-function ActivityChart({ series }: { series: { day: string; kind: string; n: number }[] }) {
+function ActivityChart({
+  series,
+  metric,
+  onToggleMetric,
+}: {
+  series: { day: string; kind: string; n: number }[];
+  metric: Metric | null;
+  onToggleMetric: (m: Metric) => void;
+}) {
   // Group per day, stacked bars of executions / dms / clicks.
   const days = new Map<string, { exec: number; dm: number; click: number }>();
   for (const s of series) {
@@ -258,12 +308,20 @@ function ActivityChart({ series }: { series: { day: string; kind: string; n: num
     days.set(key, entry);
   }
   const list = [...days.entries()].slice(-14);
-  const max = Math.max(1, ...list.map(([, v]) => v.exec + v.dm + v.click));
-  const colors = { exec: "bg-ink-light dark:bg-ink-dark", dm: "bg-accent", click: "bg-emerald-500" };
+  const stackedMax = Math.max(1, ...list.map(([, v]) => v.exec + v.dm + v.click));
+  // Isolated view rescales to that metric's own range so a single quiet
+  // series doesn't look flat next to the combined total.
+  const isolatedMax = metric ? Math.max(1, ...list.map(([, v]) => v[metric])) : stackedMax;
 
   if (list.length === 0) {
     return <p className="py-16 text-center text-sm text-muted-light dark:text-muted-dark">No activity in this period.</p>;
   }
+
+  const LEGEND: { key: Metric; label: string }[] = [
+    { key: "dm", label: "DMs sent" },
+    { key: "click", label: "Clicks" },
+    { key: "exec", label: "Triggers" },
+  ];
 
   return (
     <div className="overflow-x-auto">
@@ -271,18 +329,36 @@ function ActivityChart({ series }: { series: { day: string; kind: string; n: num
         {list.map(([day, v]) => (
           <div key={day} className="group flex min-w-6 flex-1 flex-col items-center gap-1">
             <div className="flex h-32 w-full flex-col justify-end gap-px">
-              <div className={`${colors.dm} rounded-t-sm transition-all group-hover:opacity-80`} style={{ height: `${Math.max(2, (v.dm / max) * 100)}%` }} title={`${v.dm} DMs`} />
-              <div className={`${colors.click} transition-all group-hover:opacity-80`} style={{ height: `${Math.max(2, (v.click / max) * 100)}%` }} title={`${v.click} clicks`} />
-              <div className={`${colors.exec} rounded-b-sm transition-all group-hover:opacity-80`} style={{ height: `${Math.max(2, (v.exec / max) * 100)}%` }} title={`${v.exec} triggers`} />
+              {metric ? (
+                <div
+                  className={`${METRIC_COLOR[metric].bar} rounded-sm transition-all group-hover:opacity-80`}
+                  style={{ height: `${Math.max(2, (v[metric] / isolatedMax) * 100)}%` }}
+                  title={`${v[metric]} ${LEGEND.find((l) => l.key === metric)?.label}`}
+                />
+              ) : (
+                <>
+                  <div className={`${METRIC_COLOR.dm.bar} rounded-t-sm transition-all group-hover:opacity-80`} style={{ height: `${Math.max(2, (v.dm / stackedMax) * 100)}%` }} title={`${v.dm} DMs`} />
+                  <div className={`${METRIC_COLOR.click.bar} transition-all group-hover:opacity-80`} style={{ height: `${Math.max(2, (v.click / stackedMax) * 100)}%` }} title={`${v.click} clicks`} />
+                  <div className={`${METRIC_COLOR.exec.bar} rounded-b-sm transition-all group-hover:opacity-80`} style={{ height: `${Math.max(2, (v.exec / stackedMax) * 100)}%` }} title={`${v.exec} triggers`} />
+                </>
+              )}
             </div>
             <span className="text-[10px] text-muted-light dark:text-muted-dark">{day.slice(5)}</span>
           </div>
         ))}
       </div>
-      <div className="mt-3 flex gap-4 text-[11px] text-muted-light dark:text-muted-dark">
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-accent" /> DMs sent</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-emerald-500" /> Clicks</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-ink-light dark:bg-ink-dark" /> Triggers</span>
+      <div className="mt-3 flex gap-4 text-[11px]">
+        {LEGEND.map((l) => (
+          <button
+            key={l.key}
+            onClick={() => onToggleMetric(l.key)}
+            className={`flex items-center gap-1.5 rounded transition-opacity ${
+              metric && metric !== l.key ? "opacity-40 hover:opacity-70" : "opacity-100"
+            } text-muted-light hover:text-ink-light dark:text-muted-dark dark:hover:text-ink-dark`}
+          >
+            <span className={`h-2 w-2 rounded-sm ${METRIC_COLOR[l.key].dot}`} /> {l.label}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -304,8 +380,8 @@ function Funnel({ funnel }: { funnel: DashboardData["funnel"] }) {
             <span className="tabular-nums text-muted-light dark:text-muted-dark">{s.value}</span>
           </div>
           <div className="mt-1 flex items-center gap-2">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700/40">
-              <div className={`h-full rounded-full ${i === 0 ? "bg-ink-light dark:bg-ink-dark" : i === 1 ? "bg-accent" : "bg-emerald-500"}`} style={{ width: `${Math.max(6, (s.value / max) * 100)}%` }} />
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-line-light dark:bg-line-dark">
+              <div className={`h-full rounded-full ${i === 0 ? "bg-ink-light dark:bg-ink-dark" : i === 1 ? "bg-accent" : "bg-success"}`} style={{ width: `${Math.max(6, (s.value / max) * 100)}%` }} />
             </div>
             {s.rate !== null && <span className="w-10 text-right text-[10px] tabular-nums text-muted-light dark:text-muted-dark">{pct(s.rate)}</span>}
           </div>

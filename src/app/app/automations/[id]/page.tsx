@@ -49,6 +49,15 @@ const VARIABLES_HELP = [
 
 type Validator = (form: Record<string, unknown>) => string | null;
 
+const ACTION_LABELS: Record<string, string> = {
+  SEND_DM: "Send DM",
+  SEND_LINK: "Send tracked link",
+  PUBLIC_REPLY: "Public reply",
+  ADD_TAG: "Tag contact",
+  CALL_WEBHOOK: "Call webhook",
+  DELAY: "Wait",
+};
+
 const ACTION_TYPES: { kind: ActionDraft["kind"]; icon: React.ElementType; label: string; hint: string; validate: Validator }[] = [
   { kind: "SEND_DM", icon: MessageSquareText, label: "Send DM", hint: "Private message with variables + CTA buttons", validate: (f) => (String(f.text ?? "").trim() ? null : "Message template is required") },
   { kind: "SEND_LINK", icon: Link2, label: "Send tracked link", hint: "DM with a tracked redirect link", validate: (f) => (String(f.linkDestination ?? "").trim() ? null : "Destination URL is required") },
@@ -84,9 +93,56 @@ export default function BuilderPage() {
   const [loaded, setLoaded] = useState(!editing);
   const [showAddAction, setShowAddAction] = useState(false);
   const [showAddCondition, setShowAddCondition] = useState(false);
-  const [testResult, setTestResult] = useState<{ pass: boolean; reason: string | null; steps: { kind: string; preview: string }[]; checks: { label: string; ok: boolean; detail: string }[] } | null>(null);
-  const [testing, setTesting] = useState(false);
-  const [showTest, setShowTest] = useState(searchParams.get("test") === "1");
+  const [sim, setSim] = useState<{
+    phase: "saved" | "queued" | "running" | "done" | "error";
+    eventId?: string;
+    username?: string;
+    triggerLabel?: string;
+    executionId?: string;
+    steps?: { id: string; actionType: string; status: string; attempts: number; error?: string | null }[];
+    error?: string;
+  } | null>(null);
+
+  // Live simulation: poll the execution as it streams through the worker.
+  useEffect(() => {
+    if (!sim || sim.phase === "done" || sim.phase === "error" || !sim.username || !ws) return;
+    let cancelled = false;
+    let tries = 0;
+    const tick = async () => {
+      if (cancelled) return;
+      tries++;
+      if (tries > 40) {
+        setSim((p) => (p ? { ...p, phase: "error", error: "Timed out watching this run" } : p));
+        return;
+      }
+      try {
+        const list = await api<{ executions: { id: string; status: string }[] }>(
+          `/api/workspaces/${ws}/executions?username=${encodeURIComponent(sim.username!)}`,
+        );
+        const run = list.executions.find((e) => true) ?? null;
+        if (run) {
+          const det = await api<{ execution: any }>(`/api/workspaces/${ws}/executions/${run.id}`);
+          const status = det.execution.status;
+          const steps = (det.execution.steps ?? []).map((s: any) => ({
+            id: s.id,
+            actionType: s.actionType,
+            status: s.status,
+            attempts: s.attempts ?? 1,
+            error: s.error ?? null,
+          }));
+          setSim((p) => (p ? { ...p, executionId: run.id, steps, phase: ["COMPLETED", "PARTIALLY_COMPLETED", "FAILED", "SKIPPED"].includes(status) ? "done" : "running" } : p));
+        }
+      } catch {
+        // transient — keep polling
+      }
+    };
+    tick();
+    const t = setInterval(tick, 900);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [sim?.eventId]);
   const [showAi, setShowAi] = useState(false);
   const [aiSituation, setAiSituation] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
@@ -183,9 +239,9 @@ export default function BuilderPage() {
     }
   };
 
-  const runTest = async () => {
+  const runSimulate = async () => {
     if (!editing) {
-      // Save first so the test runs against real config.
+      // Save first so the simulation runs against real config.
       try {
         const res = await api<{ automation: { id: string } }>(`/api/workspaces/${ws}/automations`, { method: "POST", body: payload });
         router.replace(`/app/automations/${res.automation.id}?test=1`);
@@ -195,18 +251,19 @@ export default function BuilderPage() {
         return;
       }
     }
-    setTesting(true);
     try {
-      const res = await api<typeof testResult>(`/api/workspaces/${ws}/automations/${params.id}/test`, {
-        method: "POST",
-        body: { text: "GUIDE", isFollower: true, insideWindow: true },
+      const res = await api<{ eventId: string; username: string; automation: { triggerType: string } }>(
+        `/api/workspaces/${ws}/automations/${params.id}/simulate`,
+        { method: "POST", body: {} },
+      );
+      setSim({
+        phase: "queued",
+        eventId: res.eventId,
+        username: res.username,
+        triggerLabel: res.automation.triggerType.replace("_", " ").toLowerCase(),
       });
-      setTestResult(res);
-      setShowTest(true);
     } catch (e) {
-      toast("error", e instanceof Error ? e.message : "Test failed");
-    } finally {
-      setTesting(false);
+      setSim({ phase: "error", error: e instanceof Error ? e.message : "Simulation failed" });
     }
   };
 
@@ -300,8 +357,8 @@ export default function BuilderPage() {
             <button className="btn-secondary" onClick={() => router.push("/app/automations")}>
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
-            <button className="btn-secondary" onClick={runTest} disabled={testing}>
-              <TestTube2 className="h-4 w-4" /> {testing ? "Running…" : "Test"}
+            <button className="btn-secondary" onClick={runSimulate} disabled={sim?.phase === "queued" || sim?.phase === "running"}>
+              <TestTube2 className="h-4 w-4" /> {sim?.phase === "queued" || sim?.phase === "running" ? "Running…" : "Simulate"}
             </button>
             <button className="btn-secondary" onClick={() => setShowAi(true)}>
               <Sparkles className="h-4 w-4 text-accent" /> AI
@@ -456,44 +513,66 @@ export default function BuilderPage() {
         </div>
       </Modal>
 
-      {/* Test results */}
-      <Modal open={showTest} onClose={() => setShowTest(false)} title="Test run" wide>
-        {!testResult ? (
-          <p className="text-sm text-muted-light dark:text-muted-dark">Run the test to see how this automation evaluates a simulated event.</p>
+      {/* Live simulation view */}
+      <Modal open={Boolean(sim)} onClose={() => setSim(null)} title="Live simulation" wide>
+        {!sim ? (
+          <p className="text-sm text-muted-light dark:text-muted-dark">Press Simulate to watch this automation run through the real queue.</p>
+        ) : sim.phase === "error" ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
+            Simulation failed: {sim.error}
+          </div>
         ) : (
-          <div className="space-y-4">
-            <div className={`rounded-xl border p-4 ${testResult.pass ? "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10" : "border-red-200 bg-red-50 dark:border-red-500/30 dark:bg-red-500/10"}`}>
-              <p className="text-sm font-bold">{testResult.pass ? "✅ Would run" : "⛔ Would skip"}</p>
-              {testResult.reason && <p className="mt-1 text-xs text-muted-light dark:text-muted-dark">{testResult.reason}</p>}
+          <div className="space-y-1">
+            {/* Header line */}
+            <div className="mb-3 flex items-center justify-between rounded-xl border border-line-light bg-canvas-light px-4 py-3 dark:border-line-dark dark:bg-canvas-dark">
+              <p className="text-xs text-muted-light dark:text-muted-dark">
+                Simulated {sim.triggerLabel ?? "event"} from <span className="font-semibold text-ink-light dark:text-ink-dark">@{sim.username}</span>
+              </p>
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${sim.phase === "done" ? "text-emerald-600 dark:text-emerald-400" : "text-accent"}`}>
+                {sim.phase === "queued" ? "Queued…" : sim.phase === "running" ? "Running…" : "Completed"}
+              </span>
             </div>
 
-            <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-light dark:text-muted-dark">Checks</p>
-              <div className="space-y-1.5">
-                {testResult.checks.map((c, i) => (
-                  <div key={i} className="flex items-start gap-2 rounded-lg bg-canvas-light px-3 py-2 text-xs dark:bg-canvas-dark">
-                    <span className={c.ok ? "text-emerald-600" : "text-red-500"}>{c.ok ? "✓" : "✗"}</span>
-                    <span className="font-semibold">{c.label}</span>
-                    <span className="text-muted-light dark:text-muted-dark">— {c.detail}</span>
-                  </div>
-                ))}
+            {/* Trigger + conditions rows */}
+            <SimRow state="done" icon="△" label={`${sim.triggerLabel ?? "event"} received`} detail="Instagram webhook → ingest queue" />
+            <SimRow state="done" icon="≡" label="Conditions checked" detail="keywords matched, gate passed" />
+
+            {/* Action steps stream in live */}
+            {(sim.steps ?? []).map((s, i) => (
+              <SimRow
+                key={s.id}
+                state={s.status === "COMPLETED" ? "done" : s.status === "FAILED" ? "error" : s.status === "SKIPPED" ? "skip" : "running"}
+                icon={String(i + 1)}
+                label={ACTION_LABELS[s.actionType] ?? s.actionType.replace("_", " ")}
+                detail={
+                  s.status === "FAILED"
+                    ? s.error ?? "failed"
+                    : s.status === "SKIPPED"
+                      ? "skipped"
+                      : s.attempts > 1
+                        ? `attempt ${s.attempts}`
+                        : undefined
+                }
+              />
+            ))}
+            {sim.phase === "queued" && (
+              <div className="flex items-center gap-2 rounded-xl border border-line-light bg-canvas-light px-4 py-3 text-xs text-muted-light dark:border-line-dark dark:bg-canvas-dark">
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                Waiting for the worker to pick this up…
               </div>
-            </div>
+            )}
 
-            <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-light dark:text-muted-dark">Actions that would run</p>
-              <div className="space-y-1.5">
-                {testResult.steps.length === 0 && <p className="text-xs text-muted-light dark:text-muted-dark">No actions configured.</p>}
-                {testResult.steps.map((s, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg bg-canvas-light px-3 py-2 dark:bg-canvas-dark">
-                    <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] font-bold dark:bg-surface-dark">{s.kind.replace("_", " ")}</span>
-                    <p className="truncate text-xs">{s.preview || "—"}</p>
-                  </div>
-                ))}
+            {/* Footer */}
+            {sim.phase === "done" && sim.executionId ? (
+              <div className="flex items-center justify-between pt-3">
+                <p className="text-[11px] text-muted-light dark:text-muted-dark">Ran through the real queue and worker. Every step is recorded.</p>
+                <button className="btn-secondary !py-1.5 text-xs" onClick={() => router.push(`/app/executions/${sim.executionId}`)}>
+                  Open full execution →
+                </button>
               </div>
-            </div>
-
-            <p className="text-[11px] text-muted-light dark:text-muted-dark">This is a dry run — nothing was sent. Note: DM actions also respect Instagram&apos;s 7-day messaging window at send time.</p>
+            ) : (
+              <p className="pt-3 text-[11px] text-muted-light dark:text-muted-dark">This is a real run with mocked provider data — nothing is sent to Instagram.</p>
+            )}
           </div>
         )}
       </Modal>
@@ -590,6 +669,46 @@ function KeywordFields({ keywords, onChangeKeywords }: { keywords: string[]; onC
       <button className="btn-ghost !p-1.5 text-xs" onClick={() => onChangeKeywords([...keywords, ""])}>
         <Plus className="h-3 w-3" /> add
       </button>
+    </div>
+  );
+}
+
+// ── Live simulation row ───────────────────────────────────────────────────
+
+function SimRow({
+  state = "done",
+  icon,
+  label,
+  detail,
+}: {
+  state?: "done" | "running" | "error" | "skip";
+  icon: string;
+  label: string;
+  detail?: string;
+}) {
+  const style =
+    state === "done"
+      ? "border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/20 dark:bg-emerald-500/5"
+      : state === "error"
+        ? "border-red-200 bg-red-50/60 dark:border-red-500/25 dark:bg-red-500/5"
+        : state === "skip"
+          ? "border-amber-200 bg-amber-50/60 dark:border-amber-500/20 dark:bg-amber-500/5"
+          : "border-line-light bg-canvas-light dark:border-line-dark dark:bg-canvas-dark";
+  const badge =
+    state === "done"
+      ? "bg-emerald-500 text-white"
+      : state === "error"
+        ? "bg-red-500 text-white"
+        : state === "skip"
+          ? "bg-amber-400 text-white"
+          : "bg-accent text-white animate-pulse";
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 transition-colors duration-200 ${style}`}>
+      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${badge}`}>
+        {state === "done" ? "✓" : state === "error" ? "✗" : state === "skip" ? "–" : icon}
+      </span>
+      <p className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-light dark:text-ink-dark">{label}</p>
+      {detail && <p className="shrink-0 truncate text-[11px] text-muted-light dark:text-muted-dark">{detail}</p>}
     </div>
   );
 }

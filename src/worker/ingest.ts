@@ -30,6 +30,7 @@ export async function processIngestJob(job: IngestJobData): Promise<{ events: nu
       event,
       workspaceId: resolution.workspaceId,
       socialConnection: resolution.connection,
+      onlyAutomationId: job.onlyAutomationId,
     });
     scheduled += result.scheduled;
   }

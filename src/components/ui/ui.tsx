@@ -225,9 +225,37 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 // ── Stat card ─────────────────────────────────────────────────────────────
 
-export function StatCard({ label, value, sub, icon }: { label: string; value: React.ReactNode; sub?: React.ReactNode; icon?: React.ReactNode }) {
+export function StatCard({
+  label,
+  value,
+  sub,
+  icon,
+  onClick,
+  active,
+  dimmed,
+  ringClass,
+}: {
+  label: string;
+  value: React.ReactNode;
+  sub?: React.ReactNode;
+  icon?: React.ReactNode;
+  /** Makes the card clickable — used for chart cross-filtering (click a KPI to isolate it). */
+  onClick?: () => void;
+  /** Highlights the card as the currently isolated metric. */
+  active?: boolean;
+  /** Fades the card when a *different* metric is isolated. */
+  dimmed?: boolean;
+  /** Tailwind ring/border color class applied when active, e.g. "ring-[#8b5cf6] border-[#8b5cf6]". */
+  ringClass?: string;
+}) {
+  const Comp = onClick ? "button" : "div";
   return (
-    <div className="card card-pad">
+    <Comp
+      onClick={onClick}
+      className={`card card-pad text-left transition-all ${onClick ? "cursor-pointer hover:border-ink-light/20 dark:hover:border-ink-dark/20" : ""} ${
+        active ? `ring-2 ring-offset-2 ring-offset-canvas-light dark:ring-offset-canvas-dark ${ringClass ?? "ring-accent border-accent"}` : ""
+      } ${dimmed ? "opacity-45" : ""}`}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-light dark:text-muted-dark">{label}</p>
@@ -236,7 +264,7 @@ export function StatCard({ label, value, sub, icon }: { label: string; value: Re
         </div>
         {icon && <div className="text-muted-light/60 dark:text-muted-dark/60">{icon}</div>}
       </div>
-    </div>
+    </Comp>
   );
 }
 

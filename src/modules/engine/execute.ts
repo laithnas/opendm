@@ -35,10 +35,12 @@ export type AutomationWithGraph = Automation & {
 };
 
 export interface AutomatchInput {
-  event: EngineEvent;
   workspaceId: string;
+  event: EngineEvent;
   socialConnection?: SocialConnection | null;
   contact?: Contact | null;
+  /** Restrict matching to one automation (simulate mode). */
+  onlyAutomationId?: string;
 }
 
 // ─── Match + schedule ─────────────────────────────────────────────────────
@@ -55,6 +57,7 @@ export async function runAutomationsForEvent(input: AutomatchInput): Promise<{ s
       status: "ACTIVE",
       triggerType: input.event.kind,
       archivedAt: null,
+      ...(input.onlyAutomationId ? { id: input.onlyAutomationId } : {}),
     },
     include: { conditions: true, actions: { orderBy: { order: "asc" } } },
   });

@@ -10,8 +10,8 @@ export default function LandingPage() {
       {/* Nav */}
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-xs font-black text-white">LF</div>
-          <span className="text-[15px] font-bold">{product.name}</span>
+          <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-gradient-to-br from-accent to-accent-dark font-display text-xs font-bold text-white shadow-glow">OD</div>
+          <span className="font-display text-[15px] font-semibold">{product.name}</span>
         </div>
         <div className="flex items-center gap-4">
           <a href={product.links.github} className="hidden items-center gap-1.5 text-sm font-medium text-muted-light hover:text-ink-light sm:flex dark:text-muted-dark dark:hover:text-ink-dark">

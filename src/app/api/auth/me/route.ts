@@ -17,7 +17,13 @@ export const GET = apiRoute({
       cookies().set(CSRF_COOKIE, csrfToken, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
     }
     const workspaces = await listUserWorkspaces(ctx.user.id);
-    const activeWorkspaceId = ctx.workspace?.id ?? readWorkspaceCookie() ?? workspaces[0]?.workspace.id ?? null;
+    // The cookie can outlive its workspace (demo reseed, deleted workspace) —
+    // only trust it if it still names a workspace this user belongs to.
+    // Otherwise fall back to the first membership instead of handing back a
+    // dead id, which would make every subsequent request 403 forever.
+    const cookieId = readWorkspaceCookie();
+    const cookieIsValid = cookieId ? workspaces.some((m) => m.workspace.id === cookieId) : false;
+    const activeWorkspaceId = (cookieIsValid ? cookieId : null) ?? workspaces[0]?.workspace.id ?? null;
     if (activeWorkspaceId) setWorkspaceCookie(activeWorkspaceId);
 
     return json({

@@ -16,6 +16,7 @@ export async function listAutomations(workspaceId: string, opts: { status?: stri
     prisma.automation.findMany({
       where,
       include: {
+        conditions: { orderBy: { order: "asc" } },
         actions: { orderBy: { order: "asc" } },
         _count: { select: { executions: true } },
       },

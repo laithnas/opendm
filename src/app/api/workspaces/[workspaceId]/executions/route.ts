@@ -10,6 +10,8 @@ export const GET = apiRoute({
     const pageSize = 25;
     const where: Prisma.ExecutionWhereInput = { workspaceId: ctx.workspace!.workspaceId };
     if (status && status !== "ALL") where.status = status as Prisma.ExecutionWhereInput["status"];
+    const username = ctx.req.nextUrl.searchParams.get("username");
+    if (username) where.contact = { username };
 
     const [items, total] = await Promise.all([
       prisma.execution.findMany({

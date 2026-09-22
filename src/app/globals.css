@@ -11,6 +11,10 @@
     @apply bg-canvas-light text-ink-light dark:bg-canvas-dark dark:text-ink-dark;
     font-feature-settings: "ss01", "cv11";
   }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
   :focus-visible {
     @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-canvas-light dark:ring-offset-canvas-dark;
   }
@@ -28,6 +32,7 @@
   }
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    font-family: var(--font-display);
   }
   .btn-primary {
     @apply btn bg-accent text-white hover:bg-accent-dark;
@@ -39,7 +44,7 @@
     @apply btn text-muted-light hover:bg-black/5 hover:text-ink-light dark:text-muted-dark dark:hover:bg-white/5 dark:hover:text-ink-dark;
   }
   .btn-danger {
-    @apply btn border border-accent/30 bg-accent/10 text-accent hover:bg-accent/15;
+    @apply btn border border-danger/30 bg-danger/10 text-danger hover:bg-danger/15;
   }
   .input {
     @apply w-full rounded-lg border border-line-light bg-surface-light px-3 py-2 text-sm text-ink-light placeholder:text-muted-light focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-line-dark dark:bg-surface-dark dark:text-ink-dark dark:placeholder:text-muted-dark;
@@ -49,6 +54,7 @@
   }
   .kpi {
     @apply text-3xl font-bold tabular-nums tracking-tight;
+    font-family: var(--font-mono);
   }
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold;
