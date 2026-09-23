@@ -41,6 +41,27 @@ export async function processIngestJob(job: IngestJobData): Promise<{ events: nu
       });
       continue;
     }
+    // The connected account's own activity (most importantly, the comment
+    // replies PUBLIC_REPLY just posted) gets redelivered to us as a fresh
+    // webhook event — Meta doesn't distinguish "a user commented" from "the
+    // page/account itself commented" at the field-change level the way it
+    // does for messages (is_echo). Left unfiltered, this makes the bot
+    // trigger itself: comment → PUBLIC_REPLY → that reply arrives back as a
+    // new "comment" → automation fires again → tries to reply to its own
+    // reply (Instagram has no reply-to-a-reply, so Meta returns a generic
+    // 500) and, worse, opens a Follow Gate DM addressed to the account
+    // itself. Every event kind gets the same self-authored check DMs
+    // already get via is_echo.
+    if (resolution.connection && event.contact.externalId === resolution.connection.externalAccountId) {
+      skipped++;
+      log.info("ingest: skipping event authored by the connected account itself", {
+        provider: job.provider,
+        eventId: event.providerEventId,
+        kind: event.kind,
+      });
+      continue;
+    }
+
     // A tap on a follow-gate button is a direct state transition tied to
     // one specific run, not something for the generic trigger/condition
     // matcher — intercept it here before automation matching runs at all.
