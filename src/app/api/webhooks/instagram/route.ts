@@ -46,6 +46,9 @@ export async function POST(req: NextRequest) {
   } catch {
     return new Response("Invalid JSON", { status: 400 });
   }
+  // TEMP diagnostic — remove once the "real webhooks parse to 0 events" bug
+  // is confirmed fixed. Payload is public comment/message metadata, no secrets.
+  log.info("instagram webhook raw payload", { raw: rawBody.slice(0, 2000) });
 
   await queues.ingest.add(
     "instagram",
