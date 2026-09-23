@@ -5,6 +5,7 @@ import type { $Enums } from "@prisma/client";
 import { getSocialProvider } from "@/modules/providers/registry";
 import { runAutomationsForEvent } from "@/modules/engine/execute";
 import type { NormalizedEvent } from "@/modules/providers/types";
+import { isGateButtonPayload, advanceFollowGate } from "@/modules/followgate/service";
 
 // Ingest processor: normalize raw provider webhooks into engine events and
 // schedule executions. Fast, retry-safe, idempotent downstream.
@@ -40,6 +41,14 @@ export async function processIngestJob(job: IngestJobData): Promise<{ events: nu
       });
       continue;
     }
+    // A tap on a follow-gate button is a direct state transition tied to
+    // one specific run, not something for the generic trigger/condition
+    // matcher — intercept it here before automation matching runs at all.
+    if (event.kind === "DM" && isGateButtonPayload(event.buttonPayload) && resolution.connection) {
+      await advanceFollowGate(event, resolution.connection);
+      continue;
+    }
+
     const result = await runAutomationsForEvent({
       event,
       workspaceId: resolution.workspaceId,

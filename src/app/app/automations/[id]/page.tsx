@@ -8,6 +8,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowDown, MousePointerClick, MessageSquare, CornerDownRight, Filter, MessageSquareText, Link2, SquarePen,
   Tag, Globe, Clock3, Plus, Trash2, GripVertical, Zap, TestTube2, Save, ArrowLeft, Download, Sparkles, History,
+  UserPlus,
 } from "lucide-react";
 import { api, getActiveWorkspace } from "@/lib/client";
 import { StatusBadge, PageHeader, Toggle, Spinner, useToast, Modal } from "@/components/ui/ui";
@@ -24,7 +25,7 @@ interface ConditionDraft {
 
 interface ActionDraft {
   id: string;
-  kind: "SEND_DM" | "SEND_LINK" | "PUBLIC_REPLY" | "ADD_TAG" | "CALL_WEBHOOK" | "DELAY";
+  kind: "SEND_DM" | "SEND_LINK" | "PUBLIC_REPLY" | "ADD_TAG" | "CALL_WEBHOOK" | "DELAY" | "FOLLOW_GATE";
   config: Record<string, unknown>;
   enabled: boolean;
   delayMs: number;
@@ -65,6 +66,13 @@ const ACTION_TYPES: { kind: ActionDraft["kind"]; icon: React.ElementType; label:
   { kind: "ADD_TAG", icon: Tag, label: "Tag contact", hint: "Add a CRM tag to the contact", validate: (f) => (String(f.tag ?? "").trim() ? null : "Tag name is required") },
   { kind: "CALL_WEBHOOK", icon: Globe, label: "Webhook", hint: "POST structured data to your stack (n8n, Make, custom CRM)", validate: (f) => /^https?:\/\//.test(String(f.url ?? "")) ? null : "Valid https URL required" },
   { kind: "DELAY", icon: Clock3, label: "Wait", hint: "Pause before the next action (platform rules permitting)", validate: () => null },
+  {
+    kind: "FOLLOW_GATE",
+    icon: UserPlus,
+    label: "Follow gate",
+    hint: "\"Follow me, tap the button, get the link\" — a friction step, not a verified check (Meta has no API for that)",
+    validate: (f) => (!String(f.gateText ?? "").trim() ? "Follow-prompt text is required" : !String(f.finalText ?? "").trim() ? "Message to send after the tap is required" : null),
+  },
 ];
 
 const CONDITION_TYPES: { kind: ConditionDraft["kind"]; label: string; hint: string }[] = [
@@ -862,6 +870,26 @@ function ActionEditor({
                   <Plus className="h-3 w-3" /> Add button
                 </button>
               )}
+            </div>
+          </div>
+        )}
+
+        {a.kind === "FOLLOW_GATE" && (
+          <div className="space-y-2.5">
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              Sends the gate message, then sends the final message the moment the button is tapped — no follow is actually verified (Meta has no API for that). It's friction, not a real gate.
+            </p>
+            <div>
+              <label className="label">Follow-prompt message</label>
+              <textarea className="input min-h-16" value={String(a.config.gateText ?? "")} onChange={(e) => set({ gateText: e.target.value })} placeholder="Almost there — these go out to my followers only. Follow me and tap below, I'll send it straight away." />
+            </div>
+            <div>
+              <label className="label">Button label</label>
+              <input className="input !w-48" value={String(a.config.gateButtonLabel ?? "I Followed")} onChange={(e) => set({ gateButtonLabel: e.target.value })} placeholder="I Followed" />
+            </div>
+            <div>
+              <label className="label">Message sent after the tap</label>
+              <textarea className="input min-h-16" value={String(a.config.finalText ?? "")} onChange={(e) => set({ finalText: e.target.value })} placeholder="Sent 🔥 link's right below…" />
             </div>
           </div>
         )}

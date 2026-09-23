@@ -105,6 +105,7 @@ model Workspace {
   webhookDeliveries WebhookDelivery[]
   auditLogs         AuditLog[]
   aiUsage           AIUsage[]
+  followGateRuns    FollowGateRun[]
 
   @@index([slug])
 }
@@ -171,6 +172,7 @@ model SocialConnection {
   conversations Conversation[]
   messages      Message[]
   executions    Execution[]
+  followGateRuns FollowGateRun[]
 
   @@unique([provider, externalAccountId])
   @@index([workspaceId])
@@ -237,6 +239,7 @@ model AutomationAction {
 
   automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
   steps      ExecutionStep[]
+  followGateRuns FollowGateRun[]
 
   @@index([automationId])
 }
@@ -269,6 +272,7 @@ model Contact {
   linkClicks  LinkClick[]
   executions  Execution[]
   webhookDeliveries WebhookDelivery[]
+  followGateRuns FollowGateRun[]
 
   @@unique([workspaceId, provider, externalId])
   @@index([workspaceId])
@@ -476,6 +480,33 @@ model ExecutionStep {
   @@index([executionId])
 }
 
+// ─── Follow gate ─────────────────────────────────────────────────────────
+// "Follow me, tap the button, get the link" DM sequence. Deliberately does
+// NOT verify the follow — Meta's official API has no endpoint for "does
+// user X follow account Y" (confirmed: even Meta business partners run this
+// off undocumented, delayed, gameable mechanisms). This is the honest
+// version: a friction step, not an enforced gate. See docs/meta-setup.md.
+
+model FollowGateRun {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  actionId           String // the FOLLOW_GATE AutomationAction that started this
+  contactId          String
+  socialConnectionId String
+  step               Int       @default(0) // 0 = gate message sent, 1 = completed
+  gateButtonPayload  String    @unique // random token sent as the quick-reply payload
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  action           AutomationAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  contact          Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  socialConnection SocialConnection @relation(fields: [socialConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([contactId])
+}
+
 // ─── Outbound webhooks ───────────────────────────────────────────────────
 
 model WebhookDelivery {
@@ -605,6 +636,7 @@ enum ActionKind {
   ADD_TAG
   CALL_WEBHOOK
   DELAY
+  FOLLOW_GATE
 }
 
 enum ExecutionStatus {

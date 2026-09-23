@@ -65,4 +65,70 @@ describe("parseInstagramWebhook", () => {
     });
     expect(events).toHaveLength(0);
   });
+
+  // Regression: real messaging deliveries send `entry.messaging` as a
+  // top-level array sibling to `changes`, not wrapped in a
+  // {field:"messaging", value} change — the parser only looked at `changes`,
+  // so every real DM/button-tap event silently parsed to 0 events. Only
+  // comments (which do use `changes`) ever actually fired. This exact shape
+  // is a real delivery captured live.
+  it("parses a real top-level entry.messaging delivery (not wrapped in changes)", () => {
+    const events = parseInstagramWebhook({
+      object: "instagram",
+      entry: [
+        {
+          time: 1790130266750,
+          id: "17841459305172292",
+          messaging: [
+            {
+              sender: { id: "964000166007401", username: "1aithn" },
+              recipient: { id: "17841459305172292" },
+              timestamp: 1790130266368,
+              message: { mid: "mid-1", text: "hi" },
+            },
+          ],
+        },
+      ],
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: "DM", providerEventId: "mid-1", text: "hi" });
+  });
+
+  it("ignores is_echo messages (our own outbound DM delivered back to us)", () => {
+    const events = parseInstagramWebhook({
+      object: "instagram",
+      entry: [
+        {
+          id: "17841459305172292",
+          messaging: [
+            {
+              sender: { id: "17841459305172292" },
+              recipient: { id: "964000166007401" },
+              message: { mid: "mid-echo", text: "outbound", is_echo: true },
+            },
+          ],
+        },
+      ],
+    });
+    expect(events).toHaveLength(0);
+  });
+
+  it("captures a quick-reply button tap as buttonPayload", () => {
+    const events = parseInstagramWebhook({
+      object: "instagram",
+      entry: [
+        {
+          id: "17841459305172292",
+          messaging: [
+            {
+              sender: { id: "964000166007401" },
+              recipient: { id: "17841459305172292" },
+              message: { mid: "mid-tap", text: "I Followed", quick_reply: { payload: "fg:abc123" } },
+            },
+          ],
+        },
+      ],
+    });
+    expect(events[0]?.buttonPayload).toBe("fg:abc123");
+  });
 });

@@ -161,6 +161,8 @@ export function actionLabelAndPreview(a: { kind: string; config?: Record<string,
       return { label: "Call webhook", preview: String(cfg.url ?? "") };
     case "DELAY":
       return { label: "Wait", preview: fmtDelay(Number(cfg.ms ?? 0)) };
+    case "FOLLOW_GATE":
+      return { label: "Follow gate", preview: String(cfg.gateText ?? "") };
     default:
       return { label: a.kind, preview: "" };
   }

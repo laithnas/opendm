@@ -73,6 +73,8 @@ export interface NormalizedEvent {
   mediaId?: string | null;
   commentId?: string | null;
   conversationExternalId?: string | null;
+  /** Payload string when this DM is a tap on one of our quick-reply buttons. */
+  buttonPayload?: string | null;
   occurredAt: string;
   raw: unknown;
 }

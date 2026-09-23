@@ -39,7 +39,10 @@ interface IgMessagingChange {
       text?: string;
       is_deleted?: boolean;
       is_unsupported?: boolean;
+      is_echo?: boolean;
       attachments?: unknown[];
+      // Present when the message is a tap on one of our quick-reply buttons.
+      quick_reply?: { payload?: string };
     };
     post?: { id?: string; text?: string; media?: unknown[]; author?: { id?: string; username?: string } };
   };
@@ -51,7 +54,17 @@ export function parseInstagramWebhook(payload: unknown): NormalizedEvent[] {
   const events: NormalizedEvent[] = [];
   if (!payload || typeof payload !== "object") return events;
   const root = payload as {
-    entry?: { id?: string; time?: number; changes?: IgChange[] }[];
+    entry?: {
+      id?: string;
+      time?: number;
+      changes?: IgChange[];
+      // Real Instagram Login webhook deliveries send messaging events as a
+      // top-level array sibling to `changes`, not wrapped inside a
+      // {field:"messaging", value} change (confirmed against a live
+      // payload — a delivery with only this key was parsing to 0 events).
+      // Comments still arrive via `changes`; this is messaging-only.
+      messaging?: IgMessagingChange["value"][];
+    }[];
     object?: string;
   };
   if (root.object === "instagram") {
@@ -63,6 +76,9 @@ export function parseInstagramWebhook(payload: unknown): NormalizedEvent[] {
         } else if (change.field === "messaging") {
           events.push(...normalizeMessaging(change.value));
         }
+      }
+      for (const value of entry.messaging ?? []) {
+        events.push(...normalizeMessaging(value));
       }
     }
   }
@@ -113,8 +129,9 @@ function normalizeMessaging(v: IgMessagingChange["value"]): NormalizedEvent[] {
     });
   }
 
-  // DM: message object present.
-  if (v.message && v.message.mid && sender) {
+  // DM: message object present. `is_echo` means it's a message OUR account
+  // sent, delivered back to us by Meta — not an inbound event to act on.
+  if (v.message && v.message.mid && sender && !v.message.is_echo) {
     if (v.message.is_deleted) return out;
     out.push({
       provider: "instagram",
@@ -127,6 +144,7 @@ function normalizeMessaging(v: IgMessagingChange["value"]): NormalizedEvent[] {
         name: sender.name,
       },
       conversationExternalId: v.message.mid,
+      buttonPayload: v.message.quick_reply?.payload ?? null,
       occurredAt,
       raw: v,
     });

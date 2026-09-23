@@ -370,6 +370,9 @@ export interface SnapshotPayload {
   commentId?: string;
   ms?: number;
   error?: string;
+  gateText?: string;
+  gateButtonLabel?: string;
+  finalText?: string;
 }
 
 async function snapshotActionPayload(
@@ -447,6 +450,13 @@ async function snapshotActionPayload(
       const ms = Math.max(0, Number(cfg.ms ?? cfg.delayMs ?? 0));
       return { ms };
     }
+    case "FOLLOW_GATE": {
+      const gateText = renderTemplate(String(cfg.gateText ?? ""), base).slice(0, 1000);
+      const finalText = renderTemplate(String(cfg.finalText ?? ""), base).slice(0, 1000);
+      if (!gateText.trim()) return { error: "follow-gate prompt is empty" };
+      if (!finalText.trim()) return { error: "follow-gate final message is empty" };
+      return { gateText, gateButtonLabel: String(cfg.gateButtonLabel ?? "I Followed").slice(0, 36), finalText };
+    }
     default:
       return { error: `unsupported action kind ${action.kind}` };
   }
@@ -460,6 +470,7 @@ function actionLabel(action: AutomationAction): string {
     ADD_TAG: "Tag contact",
     CALL_WEBHOOK: "Call webhook",
     DELAY: "Wait",
+    FOLLOW_GATE: "Follow gate",
   };
   return labels[action.kind] ?? action.kind;
 }

@@ -137,7 +137,31 @@ subsequent Graph call for this connection also goes to
   supports deleting workspace data via API/DB; a public data-deletion
   endpoint is on the roadmap (see CHANGELOG).
 
-## 7. Testing without Meta
+## 7. Follow gate (FOLLOW_GATE action)
+
+A "follow me, tap the button, get the link" DM sequence. **It does not
+verify the follow.** Meta's official Instagram API has no endpoint for
+"does user X follow account Y" — confirmed against Meta's own docs, and
+separately against ManyChat's own community, where a ManyChat moderator
+states their equivalent condition isn't even in ManyChat's own public API
+docs, and users report it running off a delayed/periodic mechanism that's
+gameable (unfollow-then-refollow still passes). Even a large official Meta
+business partner doesn't have a clean, documented, live check for this —
+building one here would mean reading the connected account's followers
+list outside the official API (browser automation or a private/mobile
+endpoint), which is exactly the "no scraping, no browser automation, no
+passwords" line this whole product holds to, and risks the connected
+account being flagged or banned.
+
+So `FOLLOW_GATE` ships the honest version: `gateText`/`gateButtonLabel` go
+out as soon as the trigger fires (send `recipient.comment_id` on the first
+message the same way `SEND_DM` does — see §4), then the moment the button
+is tapped — `POST /me/subscribed_apps`'s `messaging` field delivers the tap
+as a normal inbound DM with `message.quick_reply.payload` — `finalText`
+goes out immediately. No check in between. It's a friction/commitment step,
+not an enforced gate, and it's honest about that in the builder UI.
+
+## 8. Testing without Meta
 
 `DEMO_MODE=true` + `npm run db:seed` gives you a full workspace. The mock
 provider simulates DMs/comment replies with failure injection (`<fail>` and

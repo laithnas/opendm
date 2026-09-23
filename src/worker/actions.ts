@@ -8,6 +8,7 @@ import { addOutboundMessage } from "@/modules/inbox/service";
 import { queues } from "@/lib/queue";
 import type { ProviderKind } from "@/modules/providers/types";
 import type { SnapshotPayload } from "@/modules/engine/execute";
+import { startFollowGate } from "@/modules/followgate/service";
 
 // Action processor: performs one automation step with its provider call.
 // Runs inside the worker only. Idempotent per step (completed steps never
@@ -94,6 +95,29 @@ export async function processActionJob(data: ActionJobData): Promise<void> {
           payload: { automationId: execution.automationId, text: payload.text },
           automationId: execution.automationId,
           executionId: execution.id,
+        });
+        await markStep(step.id, "COMPLETED", { sent: true, externalId: result.externalMessageId });
+        break;
+      }
+      case "FOLLOW_GATE": {
+        if (!connection) throw new Error("no connected social account");
+        if (!execution.contactId) throw new Error("no contact for follow gate");
+        if (!step.actionId) throw new Error("follow-gate action was deleted before this step ran");
+        const contactConv = await prisma.conversation.findFirst({
+          where: { contactId: execution.contactId, workspaceId: data.workspaceId },
+          orderBy: { lastInboundAt: "desc" },
+        });
+        const trigger = (execution.triggerPayload ?? {}) as { kind?: string; commentId?: string | null };
+        const privateReplyCommentId = trigger.kind === "COMMENT" && trigger.commentId && !contactConv ? trigger.commentId : undefined;
+        const result = await startFollowGate({
+          workspaceId: data.workspaceId,
+          actionId: step.actionId,
+          executionId: execution.id,
+          contactId: execution.contactId,
+          connection,
+          gateText: payload.gateText ?? "",
+          gateButtonLabel: payload.gateButtonLabel ?? "I Followed",
+          privateReplyCommentId,
         });
         await markStep(step.id, "COMPLETED", { sent: true, externalId: result.externalMessageId });
         break;

@@ -106,9 +106,21 @@ export const delayActionConfigSchema = z
   })
   .strict();
 
+// "Follow me, tap the button, get the link" — a friction step, not a real
+// verified gate (Meta's API has no "does user X follow me" endpoint; see
+// docs/meta-setup.md). gateText/gateButtonLabel are the follow-prompt DM;
+// finalText is sent once the button is tapped, no check performed.
+export const followGateActionConfigSchema = z
+  .object({
+    gateText: z.string().min(1).max(1000),
+    gateButtonLabel: z.string().min(1).max(36).default("I Followed"),
+    finalText: z.string().min(1).max(1000),
+  })
+  .strict();
+
 export const actionSchema = z
   .object({
-    kind: z.enum(["SEND_DM", "PUBLIC_REPLY", "SEND_LINK", "ADD_TAG", "CALL_WEBHOOK", "DELAY"]),
+    kind: z.enum(["SEND_DM", "PUBLIC_REPLY", "SEND_LINK", "ADD_TAG", "CALL_WEBHOOK", "DELAY", "FOLLOW_GATE"]),
     config: z.record(z.string(), z.unknown()),
     order: z.number().int().min(0).max(100).optional().default(0),
     enabled: z.boolean().optional().default(true),
@@ -175,6 +187,15 @@ export function validateActionConfig(kind: string, config: Record<string, unknow
     case "DELAY": {
       const result = delayActionConfigSchema.safeParse({ ms: config.ms ?? 0 });
       if (!result.success) throw new Error(`Invalid DELAY config: ${result.error.message}`);
+      break;
+    }
+    case "FOLLOW_GATE": {
+      const result = followGateActionConfigSchema.safeParse({
+        gateText: config.gateText ?? "",
+        gateButtonLabel: config.gateButtonLabel,
+        finalText: config.finalText ?? "",
+      });
+      if (!result.success) throw new Error(`Invalid FOLLOW_GATE config: ${result.error.message}`);
       break;
     }
   }
