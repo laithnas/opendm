@@ -12,10 +12,19 @@ import type { NormalizedEvent } from "@/modules/providers/types";
 export async function processIngestJob(job: IngestJobData): Promise<{ events: number; scheduled: number }> {
   const provider = getSocialProvider(job.provider);
   const events = provider.parseWebhook(job.payload);
-  // TEMP diagnostic — remove once confirmed every real comment delivery
-  // parses. Payload is public comment/message metadata, no secrets.
-  if (events.length === 0) {
-    log.info("ingest: payload parsed to 0 events", { provider: job.provider, payload: JSON.stringify(job.payload).slice(0, 2000) });
+  // Permanent safety net, not temp debug: a "comments" change that parses
+  // to 0 events is always a bug (the shape changed again, a required field
+  // went missing, etc). Routine non-comment traffic (message delivery
+  // echoes, read receipts, reactions) legitimately parses to 0 and is
+  // excluded so this stays quiet in normal operation and only fires on a
+  // real anomaly — exactly the class of bug that silently broke real
+  // comment delivery for ~40 minutes before this existed. Payload is
+  // public comment metadata, no secrets.
+  if (events.length === 0 && hasUnparsedCommentChange(job.payload)) {
+    log.warn("ingest: a comments webhook parsed to 0 events — check the payload shape", {
+      provider: job.provider,
+      payload: JSON.stringify(job.payload).slice(0, 2000),
+    });
   }
   let scheduled = 0;
   let skipped = 0;
@@ -95,4 +104,10 @@ async function resolveWorkspace(
     }
   }
   return null;
+}
+
+/** True if the raw webhook envelope contains a "comments" field change — the only case where 0 parsed events is always a bug. */
+function hasUnparsedCommentChange(payload: unknown): boolean {
+  const root = payload as { entry?: { changes?: { field?: string }[] }[] } | null;
+  return Boolean(root?.entry?.some((e) => e.changes?.some((c) => c.field === "comments")));
 }
