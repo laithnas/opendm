@@ -113,6 +113,32 @@ describe("parseInstagramWebhook", () => {
     expect(events).toHaveLength(0);
   });
 
+  // Regression: messaging timestamps are already epoch-milliseconds, not
+  // seconds like comment timestamps. Multiplying by 1000 again landed the
+  // Date around the year 58698 and crashed every DB write that touched it —
+  // silently broke every real DM, including every follow-gate button tap.
+  it("treats messaging timestamps as already-milliseconds, not seconds", () => {
+    const events = parseInstagramWebhook({
+      object: "instagram",
+      entry: [
+        {
+          id: "17841459305172292",
+          messaging: [
+            {
+              sender: { id: "964000166007401" },
+              recipient: { id: "17841459305172292" },
+              timestamp: 1790130266368, // real captured value
+              message: { mid: "mid-ts", text: "hi" },
+            },
+          ],
+        },
+      ],
+    });
+    const year = new Date(events[0]!.occurredAt).getUTCFullYear();
+    expect(year).toBeGreaterThan(2020);
+    expect(year).toBeLessThan(2030);
+  });
+
   it("captures a quick-reply button tap as buttonPayload", () => {
     const events = parseInstagramWebhook({
       object: "instagram",
@@ -130,5 +156,30 @@ describe("parseInstagramWebhook", () => {
       ],
     });
     expect(events[0]?.buttonPayload).toBe("fg:abc123");
+  });
+
+  // Button-template taps (adapter.ts sendDm's `buttons` option — the format
+  // that actually renders attached to the message bubble, matching what the
+  // follow gate needs) arrive as a top-level `postback` field, not nested
+  // under `message` at all — there's no `message.mid` on this event shape.
+  it("captures a button-template tap via the postback field", () => {
+    const events = parseInstagramWebhook({
+      object: "instagram",
+      entry: [
+        {
+          id: "17841459305172292",
+          messaging: [
+            {
+              sender: { id: "964000166007401", username: "1aithn" },
+              recipient: { id: "17841459305172292" },
+              timestamp: 1790130266368,
+              postback: { payload: "fg:xyz789", title: "I Followed" },
+            },
+          ],
+        },
+      ],
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: "DM", buttonPayload: "fg:xyz789", contact: { externalId: "964000166007401" } });
   });
 });

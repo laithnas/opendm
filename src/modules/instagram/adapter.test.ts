@@ -66,4 +66,19 @@ describe("InstagramProvider", () => {
     httpFetch.mockResolvedValue(ok({ success: false }));
     await expect(new InstagramProvider().subscribeToWebhooks!(ctx)).rejects.toThrow(/not confirmed/);
   });
+
+  it("sends `buttons` as a button template, not quick_replies", async () => {
+    httpFetch.mockResolvedValue(ok({ message_id: "m1" }));
+    await new InstagramProvider().sendDm(ctx, { externalId: "user-1" }, { text: "Follow me", buttons: [{ title: "I Followed", payload: "fg:tok" }] });
+    const sent = sentBody();
+    expect(sent.message.quick_replies).toBeUndefined();
+    expect(sent.message.attachment).toEqual({
+      type: "template",
+      payload: {
+        template_type: "button",
+        text: "Follow me",
+        buttons: [{ type: "postback", title: "I Followed", payload: "fg:tok" }],
+      },
+    });
+  });
 });

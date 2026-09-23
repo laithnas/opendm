@@ -45,6 +45,10 @@ interface IgMessagingChange {
       quick_reply?: { payload?: string };
     };
     post?: { id?: string; text?: string; media?: unknown[]; author?: { id?: string; username?: string } };
+    // A tap on a button-template button (see adapter.ts sendDm) arrives as
+    // this separate top-level field, NOT nested under `message` at all —
+    // there is no `message.mid` on a postback event.
+    postback?: { payload?: string; title?: string; mid?: string };
   };
 }
 
@@ -107,7 +111,12 @@ function normalizeComment(v: IgCommentChange["value"]): NormalizedEvent | null {
 
 function normalizeMessaging(v: IgMessagingChange["value"]): NormalizedEvent[] {
   const out: NormalizedEvent[] = [];
-  const occurredAt = v.timestamp ? new Date(v.timestamp * 1000).toISOString() : new Date().toISOString();
+  // Messaging timestamps are already epoch-milliseconds (confirmed against a
+  // live payload — a 13-digit value, unlike comments' 10-digit seconds).
+  // Multiplying by 1000 again lands the Date in the year ~58698 and crashes
+  // any DB write that touches it. This broke every real DM event, including
+  // every follow-gate button tap.
+  const occurredAt = v.timestamp ? new Date(v.timestamp).toISOString() : new Date().toISOString();
   const sender = v.sender;
 
   // Story reply: `post` object present.
@@ -145,6 +154,25 @@ function normalizeMessaging(v: IgMessagingChange["value"]): NormalizedEvent[] {
       },
       conversationExternalId: v.message.mid,
       buttonPayload: v.message.quick_reply?.payload ?? null,
+      occurredAt,
+      raw: v,
+    });
+  }
+
+  // Button-template tap: no `message` object at all, just this field.
+  if (v.postback && sender) {
+    out.push({
+      provider: "instagram",
+      kind: "DM",
+      providerEventId: v.postback.mid ?? `postback:${sender.id}:${v.timestamp ?? Date.now()}`,
+      text: v.postback.title ?? "",
+      contact: {
+        externalId: sender.id,
+        username: sender.username,
+        name: sender.name,
+      },
+      conversationExternalId: v.postback.mid ?? null,
+      buttonPayload: v.postback.payload ?? null,
       occurredAt,
       raw: v,
     });

@@ -44,7 +44,7 @@ export async function startFollowGate(input: {
   const result = await provider.sendDm(
     providerCtx(input.connection),
     { externalId: contact.externalId, commentId: input.privateReplyCommentId },
-    { text: input.gateText, quickReplies: [{ title: input.gateButtonLabel, payload: gateButtonPayload }] },
+    { text: input.gateText, buttons: [{ title: input.gateButtonLabel, payload: gateButtonPayload }] },
   );
 
   await prisma.followGateRun.create({

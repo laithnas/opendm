@@ -17,7 +17,14 @@ export interface ProviderAccountInfo {
 
 export interface OutboundMessageInput {
   text: string;
+  // Quick replies: temporary suggestion chips above the keyboard — vanish
+  // once tapped, never appear in the message bubble itself.
   quickReplies?: { title: string; payload: string }[];
+  // Button template: buttons permanently attached to the message bubble
+  // (visible scrolling back through history) — up to 3, `type: "postback"`
+  // delivers `payload` back via webhook same as a quick reply. Mutually
+  // exclusive with quickReplies (Meta message, not ours).
+  buttons?: { title: string; payload: string }[];
 }
 
 export interface OutboundMessageResult {

@@ -38,13 +38,35 @@ export class InstagramProvider implements SocialProvider {
 
   /** Send a private reply (DM) to a recipient or to a comment author. */
   async sendDm(ctx: ProviderCtx, to: { externalId: string; commentId?: string }, input: OutboundMessageInput): Promise<OutboundMessageResult> {
-    const message: Record<string, unknown> = { text: input.text.slice(0, 1000) };
-    if (input.quickReplies?.length) {
-      message.quick_replies = input.quickReplies.map((qr) => ({
-        content_type: "text",
-        title: qr.title.slice(0, 36),
-        payload: qr.payload || `cta:${qr.title}`.slice(0, 1000),
-      }));
+    let message: Record<string, unknown>;
+    if (input.buttons?.length) {
+      // Button template: buttons stay attached to the message bubble
+      // permanently (visible scrolling back) — unlike quick_replies, which
+      // are temporary suggestion chips above the keyboard that vanish after
+      // one tap and never appear in the bubble itself.
+      message = {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "button",
+            text: input.text.slice(0, 640), // button template has a shorter text cap than plain messages
+            buttons: input.buttons.slice(0, 3).map((b) => ({
+              type: "postback",
+              title: b.title.slice(0, 20),
+              payload: b.payload || `cta:${b.title}`.slice(0, 1000),
+            })),
+          },
+        },
+      };
+    } else {
+      message = { text: input.text.slice(0, 1000) };
+      if (input.quickReplies?.length) {
+        message.quick_replies = input.quickReplies.map((qr) => ({
+          content_type: "text",
+          title: qr.title.slice(0, 36),
+          payload: qr.payload || `cta:${qr.title}`.slice(0, 1000),
+        }));
+      }
     }
     const body = {
       // Comment private reply: recipient is the comment id. Plain user-id
