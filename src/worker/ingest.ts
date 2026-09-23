@@ -12,6 +12,11 @@ import type { NormalizedEvent } from "@/modules/providers/types";
 export async function processIngestJob(job: IngestJobData): Promise<{ events: number; scheduled: number }> {
   const provider = getSocialProvider(job.provider);
   const events = provider.parseWebhook(job.payload);
+  // TEMP diagnostic — remove once confirmed every real comment delivery
+  // parses. Payload is public comment/message metadata, no secrets.
+  if (events.length === 0) {
+    log.info("ingest: payload parsed to 0 events", { provider: job.provider, payload: JSON.stringify(job.payload).slice(0, 2000) });
+  }
   let scheduled = 0;
   let skipped = 0;
 
