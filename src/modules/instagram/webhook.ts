@@ -14,7 +14,12 @@ interface IgCommentChange {
   field: "comments";
   value: {
     id: string;
-    media_id: string;
+    // Real Instagram Login webhook deliveries nest this as
+    // `media: { id, media_product_type }`, not a flat `media_id` string
+    // (confirmed against a live payload — the flat field doesn't exist).
+    // Kept both so an older/alternate payload shape still works.
+    media?: { id?: string; media_product_type?: string };
+    media_id?: string;
     text?: string;
     username?: string;
     timestamp?: number;
@@ -65,7 +70,8 @@ export function parseInstagramWebhook(payload: unknown): NormalizedEvent[] {
 }
 
 function normalizeComment(v: IgCommentChange["value"]): NormalizedEvent | null {
-  if (!v?.id || !v.media_id) return null;
+  const mediaId = v?.media_id ?? v?.media?.id;
+  if (!v?.id || !mediaId) return null;
   return {
     provider: "instagram",
     kind: "COMMENT",
@@ -76,7 +82,7 @@ function normalizeComment(v: IgCommentChange["value"]): NormalizedEvent | null {
       username: v.from?.username ?? v.username,
       name: undefined,
     },
-    mediaId: v.media_id,
+    mediaId,
     commentId: v.id,
     occurredAt: v.timestamp ? new Date(v.timestamp * 1000).toISOString() : new Date().toISOString(),
     raw: v,
