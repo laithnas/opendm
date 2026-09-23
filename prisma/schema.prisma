@@ -493,8 +493,11 @@ model FollowGateRun {
   actionId           String // the FOLLOW_GATE AutomationAction that started this
   contactId          String
   socialConnectionId String
-  step               Int       @default(0) // 0 = gate message sent, 1 = completed
-  gateButtonPayload  String    @unique // random token sent as the quick-reply payload
+  // 0 = prompt sent ("want it? [Yes]"), 1 = gate sent ("follow + tap"), 2 = completed
+  step                Int       @default(0)
+  // Token for whichever button is currently pending a tap — rotated to a
+  // fresh value each time a new stage's message goes out.
+  pendingButtonPayload String   @unique
   completedAt        DateTime?
   createdAt          DateTime  @default(now())
 

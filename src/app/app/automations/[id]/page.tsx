@@ -71,7 +71,14 @@ const ACTION_TYPES: { kind: ActionDraft["kind"]; icon: React.ElementType; label:
     icon: UserPlus,
     label: "Follow gate",
     hint: "\"Follow me, tap the button, get the link\" — a friction step, not a verified check (Meta has no API for that)",
-    validate: (f) => (!String(f.gateText ?? "").trim() ? "Follow-prompt text is required" : !String(f.finalText ?? "").trim() ? "Message to send after the tap is required" : null),
+    validate: (f) =>
+      !String(f.promptText ?? "").trim()
+        ? "Opening message is required"
+        : !String(f.gateText ?? "").trim()
+          ? "Follow-prompt text is required"
+          : !String(f.finalText ?? "").trim()
+            ? "Message to send after the tap is required"
+            : null,
   },
 ];
 
@@ -877,8 +884,16 @@ function ActionEditor({
         {a.kind === "FOLLOW_GATE" && (
           <div className="space-y-2.5">
             <p className="text-[11px] text-amber-600 dark:text-amber-400">
-              Sends the gate message, then sends the final message the moment the button is tapped — no follow is actually verified (Meta has no API for that). It's friction, not a real gate.
+              Three messages, one per tap: opening prompt → follow-me gate → resource. No follow is actually verified (Meta has no API for that) — it's friction, not a real gate.
             </p>
+            <div>
+              <label className="label">Opening message</label>
+              <textarea className="input min-h-16" value={String(a.config.promptText ?? "")} onChange={(e) => set({ promptText: e.target.value })} placeholder="Hey! Laith here 🙌 saw your comment — want the resource sent over?" />
+            </div>
+            <div>
+              <label className="label">Button label</label>
+              <input className="input !w-48" value={String(a.config.promptButtonLabel ?? "Yes! Send It")} onChange={(e) => set({ promptButtonLabel: e.target.value })} placeholder="Yes! Send It" />
+            </div>
             <div>
               <label className="label">Follow-prompt message</label>
               <textarea className="input min-h-16" value={String(a.config.gateText ?? "")} onChange={(e) => set({ gateText: e.target.value })} placeholder="Almost there — these go out to my followers only. Follow me and tap below, I'll send it straight away." />

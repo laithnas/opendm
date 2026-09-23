@@ -112,8 +112,13 @@ export const delayActionConfigSchema = z
 // finalText is sent once the button is tapped, no check performed.
 export const followGateActionConfigSchema = z
   .object({
+    // Stage 0 — sent immediately when the trigger fires.
+    promptText: z.string().min(1).max(1000),
+    promptButtonLabel: z.string().min(1).max(20).default("Yes! Send It"),
+    // Stage 1 — sent once the stage-0 button is tapped.
     gateText: z.string().min(1).max(1000),
-    gateButtonLabel: z.string().min(1).max(36).default("I Followed"),
+    gateButtonLabel: z.string().min(1).max(20).default("I Followed"),
+    // Stage 2 — sent once the stage-1 button is tapped. No check performed.
     finalText: z.string().min(1).max(1000),
   })
   .strict();
@@ -191,6 +196,8 @@ export function validateActionConfig(kind: string, config: Record<string, unknow
     }
     case "FOLLOW_GATE": {
       const result = followGateActionConfigSchema.safeParse({
+        promptText: config.promptText ?? "",
+        promptButtonLabel: config.promptButtonLabel,
         gateText: config.gateText ?? "",
         gateButtonLabel: config.gateButtonLabel,
         finalText: config.finalText ?? "",

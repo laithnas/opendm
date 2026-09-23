@@ -115,8 +115,8 @@ export async function processActionJob(data: ActionJobData): Promise<void> {
           executionId: execution.id,
           contactId: execution.contactId,
           connection,
-          gateText: payload.gateText ?? "",
-          gateButtonLabel: payload.gateButtonLabel ?? "I Followed",
+          promptText: payload.promptText ?? "",
+          promptButtonLabel: payload.promptButtonLabel ?? "Yes! Send It",
           privateReplyCommentId,
         });
         await markStep(step.id, "COMPLETED", { sent: true, externalId: result.externalMessageId });

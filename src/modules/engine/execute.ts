@@ -370,6 +370,8 @@ export interface SnapshotPayload {
   commentId?: string;
   ms?: number;
   error?: string;
+  promptText?: string;
+  promptButtonLabel?: string;
   gateText?: string;
   gateButtonLabel?: string;
   finalText?: string;
@@ -451,11 +453,19 @@ async function snapshotActionPayload(
       return { ms };
     }
     case "FOLLOW_GATE": {
+      const promptText = renderTemplate(String(cfg.promptText ?? ""), base).slice(0, 1000);
       const gateText = renderTemplate(String(cfg.gateText ?? ""), base).slice(0, 1000);
       const finalText = renderTemplate(String(cfg.finalText ?? ""), base).slice(0, 1000);
+      if (!promptText.trim()) return { error: "follow-gate opening message is empty" };
       if (!gateText.trim()) return { error: "follow-gate prompt is empty" };
       if (!finalText.trim()) return { error: "follow-gate final message is empty" };
-      return { gateText, gateButtonLabel: String(cfg.gateButtonLabel ?? "I Followed").slice(0, 36), finalText };
+      return {
+        promptText,
+        promptButtonLabel: String(cfg.promptButtonLabel ?? "Yes! Send It").slice(0, 20),
+        gateText,
+        gateButtonLabel: String(cfg.gateButtonLabel ?? "I Followed").slice(0, 20),
+        finalText,
+      };
     }
     default:
       return { error: `unsupported action kind ${action.kind}` };
