@@ -1,4 +1,4 @@
-import { Queue, QueueEvents, type QueueOptions } from "bullmq";
+import { Queue, type QueueOptions } from "bullmq";
 import { env } from "@/lib/env";
 import { redis } from "@/lib/redis";
 
@@ -49,13 +49,6 @@ export const queues = {
   webhooks: new Queue(QUEUE_NAMES.webhooks, webhooksOptions),
 } as const;
 
-export const queueEvents = {
-  ingest: new QueueEvents(QUEUE_NAMES.ingest, { connection: redis, prefix: env.QUEUE_PREFIX }),
-  execute: new QueueEvents(QUEUE_NAMES.execute, { connection: redis, prefix: env.QUEUE_PREFIX }),
-  actions: new QueueEvents(QUEUE_NAMES.actions, { connection: redis, prefix: env.QUEUE_PREFIX }),
-  webhooks: new QueueEvents(QUEUE_NAMES.webhooks, { connection: redis, prefix: env.QUEUE_PREFIX }),
-} as const;
-
 export interface IngestJobData {
   provider: string;
   workspaceId?: string; // resolved at processing time when absent
@@ -104,8 +97,5 @@ export interface WebhookDeliveryJobData {
 export async function closeQueues(): Promise<void> {
   await Promise.all(
     Object.values(queues).map((q) => q.close().catch(() => undefined)),
-  );
-  await Promise.all(
-    Object.values(queueEvents).map((q) => q.close().catch(() => undefined)),
   );
 }
