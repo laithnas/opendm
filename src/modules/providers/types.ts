@@ -106,6 +106,11 @@ export interface SocialProvider {
   /** Optional: enumerate top-level comments of one post. */
   listComments?(ctx: ProviderCtx, mediaId: string, opts: { limit: number }): Promise<ProviderComment[]>;
   /**
+   * Optional: whether this user follows the connected account. Only works
+   * for users who have messaged the account. null = could not determine.
+   */
+  userFollowsAccount?(ctx: ProviderCtx, externalUserId: string): Promise<boolean | null>;
+  /**
    * Optional: subscribe this specific connected account to the app's
    * webhooks. Configuring the app-level webhook (callback URL + fields) is
    * necessary but NOT sufficient — each connected account must separately

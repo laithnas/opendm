@@ -106,10 +106,11 @@ export const delayActionConfigSchema = z
   })
   .strict();
 
-// "Follow me, tap the button, get the link" — a friction step, not a real
-// verified gate (Meta's API has no "does user X follow me" endpoint; see
-// docs/meta-setup.md). gateText/gateButtonLabel are the follow-prompt DM;
-// finalText is sent once the button is tapped, no check performed.
+// "Follow me, tap the button, get the link". gateText/gateButtonLabel are the
+// follow-prompt DM; finalText is sent once the button is tapped. With
+// verifyFollow on, the tap is checked against Instagram's User Profile API
+// (is_user_follow_business, available once the user has messaged the
+// account) and non-followers get notFollowingText with the button again.
 export const followGateActionConfigSchema = z
   .object({
     // Stage 0 — sent immediately when the trigger fires.
@@ -118,8 +119,11 @@ export const followGateActionConfigSchema = z
     // Stage 1 — sent once the stage-0 button is tapped.
     gateText: z.string().min(1).max(1000),
     gateButtonLabel: z.string().min(1).max(20).default("I Followed"),
-    // Stage 2 — sent once the stage-1 button is tapped. No check performed.
+    // Stage 2 — sent once the stage-1 button is tapped (and, with
+    // verifyFollow, once Instagram confirms the follow).
     finalText: z.string().min(1).max(1000),
+    verifyFollow: z.boolean().optional(),
+    notFollowingText: z.string().min(1).max(1000).optional(),
   })
   .strict();
 
@@ -201,6 +205,8 @@ export function validateActionConfig(kind: string, config: Record<string, unknow
         gateText: config.gateText ?? "",
         gateButtonLabel: config.gateButtonLabel,
         finalText: config.finalText ?? "",
+        verifyFollow: config.verifyFollow,
+        notFollowingText: config.notFollowingText || undefined,
       });
       if (!result.success) throw new Error(`Invalid FOLLOW_GATE config: ${result.error.message}`);
       break;

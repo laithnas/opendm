@@ -148,6 +148,18 @@ export class InstagramProvider implements SocialProvider {
     }));
   }
 
+  /** Instagram User Profile API: is_user_follow_business is only returned for
+   *  users who have messaged this account (a button tap counts). */
+  async userFollowsAccount(ctx: ProviderCtx, externalUserId: string): Promise<boolean | null> {
+    try {
+      const profile = await graphGet<{ is_user_follow_business?: boolean }>(ctx, externalUserId, ["is_user_follow_business"]);
+      return typeof profile.is_user_follow_business === "boolean" ? profile.is_user_follow_business : null;
+    } catch (err) {
+      log.warn("follow status lookup failed", { error: err instanceof Error ? err.message : String(err) });
+      return null;
+    }
+  }
+
   async listComments(ctx: ProviderCtx, mediaId: string, opts: { limit: number }): Promise<ProviderComment[]> {
     const owner = ctx.connection.username?.toLowerCase() ?? "";
     const rows = await graphList<{

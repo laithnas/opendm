@@ -9,12 +9,10 @@ import type { NormalizedEvent, ProviderKind } from "@/modules/providers/types";
 import type { SocialConnection } from "@prisma/client";
 
 // "Want the resource? [Yes! Send It] → Follow me, tap below [I Followed] →
-// here's the link" — a friction step, not a real verified gate. Meta's API
-// has no "does user X follow account Y" endpoint for third-party apps
-// (confirmed against Meta's own docs and, separately, ManyChat's community
-// where a moderator describes their own version as undocumented, delayed,
-// and gameable even as an official Meta partner). This is the honest
-// version: each tap alone advances the sequence. See docs/meta-setup.md §7.
+// here's the link". By default each tap alone advances the sequence. With
+// verifyFollow on, the "I Followed" tap is checked against Instagram's User
+// Profile API (is_user_follow_business), which answers for anyone who has
+// messaged the account — tapping the stage-0 button counts.
 //
 // Three stages, tracked as FollowGateRun.step:
 //   0 = prompt sent, waiting for the "yes" tap
@@ -22,6 +20,7 @@ import type { SocialConnection } from "@prisma/client";
 //   2 = completed (final message sent)
 
 const GATE_PAYLOAD_PREFIX = "fg:";
+const DEFAULT_NOT_FOLLOWING_TEXT = "Hmm, I can't see your follow yet 👀\n\nFollow me, then tap below and I'll send it straight over.";
 
 function newToken(): string {
   return `${GATE_PAYLOAD_PREFIX}${randomCode(20)}`;
@@ -120,7 +119,13 @@ export async function advanceFollowGate(event: NormalizedEvent, connection: Soci
     return true;
   }
 
-  const cfg = run.action.config as { gateText?: string; gateButtonLabel?: string; finalText?: string };
+  const cfg = run.action.config as {
+    gateText?: string;
+    gateButtonLabel?: string;
+    finalText?: string;
+    verifyFollow?: boolean;
+    notFollowingText?: string;
+  };
   const provider = getProviderForConnection(connection);
 
   if (run.step === 0) {
@@ -153,7 +158,39 @@ export async function advanceFollowGate(event: NormalizedEvent, connection: Soci
     return true;
   }
 
-  // Stage 1 → 2: send the real resource. Still no check performed.
+  // Stage 1 → 2. With verifyFollow on, ask Instagram whether they follow;
+  // anyone not confirmed (including a failed lookup) gets the gate again.
+  if (cfg.verifyFollow && provider.userFollowsAccount) {
+    const follows = await provider.userFollowsAccount(providerCtx(connection), run.contact.externalId);
+    if (follows !== null) {
+      await prisma.contact.update({ where: { id: run.contactId }, data: { isFollower: follows } });
+    }
+    if (follows !== true) {
+      const retryText = String(cfg.notFollowingText || DEFAULT_NOT_FOLLOWING_TEXT).slice(0, 1000);
+      const token = newToken();
+      const result = await provider.sendDm(
+        providerCtx(connection),
+        { externalId: run.contact.externalId },
+        { text: retryText, buttons: [{ title: String(cfg.gateButtonLabel ?? "I Followed").slice(0, 20), payload: token }] },
+      );
+      await addOutboundMessage({
+        workspaceId: run.workspaceId,
+        conversationId: conversation.id,
+        contactId: run.contactId,
+        socialConnectionId: connection.id,
+        provider: "instagram" as ProviderKind,
+        kind: "TEXT",
+        content: retryText,
+        externalId: result.externalMessageId ?? null,
+        status: "SENT",
+      });
+      await prisma.followGateRun.update({ where: { id: run.id }, data: { pendingButtonPayload: token } });
+      await recordInteraction({ workspaceId: run.workspaceId, contactId: run.contactId, kind: "DM_OUTBOUND", payload: { text: retryText, followGate: "not_following" } });
+      log.info("follow gate blocked: follow not confirmed", { runId: run.id, follows });
+      return true;
+    }
+  }
+
   const finalText = String(cfg.finalText ?? "").slice(0, 1000);
   if (!finalText.trim()) {
     log.error("follow gate has no finalText configured", { runId: run.id, actionId: run.actionId });

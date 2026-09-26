@@ -906,6 +906,16 @@ function ActionEditor({
               <label className="label">Message sent after the tap</label>
               <textarea className="input min-h-16" value={String(a.config.finalText ?? "")} onChange={(e) => set({ finalText: e.target.value })} placeholder="Sent 🔥 link's right below…" />
             </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={Boolean(a.config.verifyFollow)} onChange={(e) => set({ verifyFollow: e.target.checked })} />
+              Only send to people who actually follow (checked with Instagram when they tap)
+            </label>
+            {Boolean(a.config.verifyFollow) && (
+              <div>
+                <label className="label">Message if they haven&apos;t followed yet</label>
+                <textarea className="input min-h-16" value={String(a.config.notFollowingText ?? "")} onChange={(e) => set({ notFollowingText: e.target.value })} placeholder="Hmm, I can't see your follow yet 👀 Follow me, then tap below and I'll send it straight over." />
+              </div>
+            )}
           </div>
         )}
 
