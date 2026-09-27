@@ -132,7 +132,9 @@ function normalizeMessaging(v: IgMessagingChange["value"]): NormalizedEvent[] {
         name: sender.name,
       },
       commentId: null,
-      conversationExternalId: v.post.id,
+      // One thread per person: Meta sends no thread id, and per-message ids
+      // would open a new inbox conversation for every message.
+      conversationExternalId: `dm:${sender.id}`,
       occurredAt,
       raw: v,
     });
@@ -152,7 +154,7 @@ function normalizeMessaging(v: IgMessagingChange["value"]): NormalizedEvent[] {
         username: sender.username,
         name: sender.name,
       },
-      conversationExternalId: v.message.mid,
+      conversationExternalId: `dm:${sender.id}`,
       buttonPayload: v.message.quick_reply?.payload ?? null,
       occurredAt,
       raw: v,
@@ -171,7 +173,7 @@ function normalizeMessaging(v: IgMessagingChange["value"]): NormalizedEvent[] {
         username: sender.username,
         name: sender.name,
       },
-      conversationExternalId: v.postback.mid ?? null,
+      conversationExternalId: `dm:${sender.id}`,
       buttonPayload: v.postback.payload ?? null,
       occurredAt,
       raw: v,

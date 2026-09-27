@@ -65,6 +65,12 @@ export async function runAutomationsForEvent(input: AutomatchInput): Promise<{ s
   let scheduled = 0;
   let skippedDup = 0;
   for (const automation of automations) {
+    // An automation scoped to one post never runs for comments on other
+    // posts; skip it here instead of logging a SKIPPED execution per comment.
+    const tc = (automation.triggerConfig ?? {}) as { postRef?: string | null; matchAnyPost?: boolean };
+    if (input.event.kind === "COMMENT" && tc.postRef && !tc.matchAnyPost && input.event.mediaId && input.event.mediaId !== tc.postRef) {
+      continue;
+    }
     const idempotencyKey = `${input.event.providerEventId}:${automation.id}`;
     const existing = await prisma.execution.findUnique({
       where: { provider_providerEventId: { provider: providerEnum(input.event.provider), providerEventId: idempotencyKey } },
