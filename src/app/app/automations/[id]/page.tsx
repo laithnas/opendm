@@ -849,6 +849,20 @@ function ActionEditor({
           </div>
         )}
 
+        {a.kind === "PUBLIC_REPLY" && (
+          <div>
+            <label htmlFor={`action-${a.id}-variants`} className="label">More replies to rotate (one per line)</label>
+            <textarea
+              id={`action-${a.id}-variants`}
+              className="input min-h-24"
+              value={Array.isArray(a.config.variants) ? (a.config.variants as string[]).join("\n") : ""}
+              onChange={(e) => set({ variants: e.target.value.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 20) })}
+              placeholder={"Sent! Check your DMs 👍\nJust DM'd you 🔥"}
+            />
+            <p className="mt-1 text-xs text-muted-light dark:text-muted-dark">Each comment gets one reply picked at random, so replies don&apos;t all look identical.</p>
+          </div>
+        )}
+
         {a.kind === "SEND_LINK" && (
           <div className="grid gap-2.5 sm:grid-cols-2">
             <div>

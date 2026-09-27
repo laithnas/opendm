@@ -79,9 +79,12 @@ export const sendLinkActionConfigSchema = z
   })
   .strict();
 
+// variants: extra replies picked at random alongside text, so dozens of
+// identical replies under one post don't read as spam.
 export const publicReplyActionConfigSchema = z
   .object({
     text: z.string().min(1).max(1000),
+    variants: z.array(z.string().min(1).max(1000)).max(20).optional(),
   })
   .strict();
 
@@ -176,7 +179,7 @@ export function validateActionConfig(kind: string, config: Record<string, unknow
       break;
     }
     case "PUBLIC_REPLY": {
-      const result = publicReplyActionConfigSchema.safeParse({ text: config.text ?? "" });
+      const result = publicReplyActionConfigSchema.safeParse({ text: config.text ?? "", variants: config.variants });
       if (!result.success) throw new Error(`Invalid PUBLIC_REPLY config: ${result.error.message}`);
       break;
     }

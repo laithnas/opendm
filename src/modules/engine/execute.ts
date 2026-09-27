@@ -427,7 +427,11 @@ async function snapshotActionPayload(
     }
     case "PUBLIC_REPLY": {
       if (!connection) return { error: "no connected social account for public reply" };
-      const text = renderTemplate(String(cfg.text ?? ""), base).slice(0, 1000);
+      const pool = [cfg.text, ...(Array.isArray(cfg.variants) ? cfg.variants : [])]
+        .map((t) => String(t ?? ""))
+        .filter((t) => t.trim());
+      const picked = pool[Math.floor(Math.random() * pool.length)] ?? "";
+      const text = renderTemplate(picked, base).slice(0, 1000);
       if (!text.trim()) return { error: "reply template is empty" };
       if (!ctx.event.commentId) return { error: "event has no comment id to reply to" };
       return { text, mediaId: ctx.event.mediaId ?? undefined, commentId: ctx.event.commentId ?? undefined };
