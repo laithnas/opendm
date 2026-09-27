@@ -45,18 +45,34 @@ export default function ConversationPage() {
   const [newTag, setNewTag] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const load = () => {
+  const notesLoaded = useRef(false);
+  const load = (opts: { poll?: boolean } = {}) => {
     if (!ws) return;
     api<{ conversation: ConversationDetail; window: { allowed: boolean; reason: string } }>(`/api/workspaces/${ws}/inbox/${params.conversationId}`)
       .then((r) => {
         setConv({ ...r.conversation, window: r.window });
-        setNotes(r.conversation.contact.notes ?? "");
+        // Don't overwrite notes the user is typing when a poll comes back.
+        if (!notesLoaded.current) {
+          setNotes(r.conversation.contact.notes ?? "");
+          notesLoaded.current = true;
+        }
       })
-      .catch(() => router.push("/app/inbox"));
+      .catch(() => {
+        if (!opts.poll) router.push("/app/inbox");
+      });
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [ws, params.conversationId]);
+  // Initial load, then poll every 3s while the tab is visible so new DMs
+  // show up without a refresh.
+  useEffect(() => {
+    notesLoaded.current = false;
+    load();
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") load({ poll: true });
+    }, 3000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, params.conversationId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps

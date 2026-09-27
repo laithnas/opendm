@@ -29,9 +29,18 @@ export default function InboxPage() {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (status !== "ALL") params.set("status", status);
-    api<{ items: ConversationRow[] }>(`/api/workspaces/${ws}/inbox?${params.toString()}`)
-      .then((r) => setItems(r.items))
-      .catch(() => setItems([]));
+    const fetchList = (poll = false) =>
+      api<{ items: ConversationRow[] }>(`/api/workspaces/${ws}/inbox?${params.toString()}`)
+        .then((r) => setItems(r.items))
+        .catch(() => {
+          if (!poll) setItems([]);
+        });
+    fetchList();
+    // Poll so new conversations and messages appear without a refresh.
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") fetchList(true);
+    }, 5000);
+    return () => clearInterval(id);
   }, [ws, query, status]);
 
   return (
