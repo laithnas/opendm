@@ -74,8 +74,19 @@ export class InstagramProvider implements SocialProvider {
       recipient: to.commentId ? { comment_id: to.commentId } : { id: to.externalId },
       message,
     };
-    const res = await graphPost<{ message_id?: string }>(ctx, `${ctx.connection.externalAccountId}/messages`, body);
-    return { externalMessageId: res.message_id ?? undefined };
+    try {
+      const res = await graphPost<{ message_id?: string }>(ctx, `${ctx.connection.externalAccountId}/messages`, body);
+      return { externalMessageId: res.message_id ?? undefined };
+    } catch (err) {
+      // Some comments can't take a private reply (already used, or not
+      // eligible). If the user has an open conversation, their id works.
+      if (!to.commentId || !to.externalId || !/private reply/i.test(err instanceof Error ? err.message : String(err))) throw err;
+      const res = await graphPost<{ message_id?: string }>(ctx, `${ctx.connection.externalAccountId}/messages`, {
+        recipient: { id: to.externalId },
+        message,
+      });
+      return { externalMessageId: res.message_id ?? undefined };
+    }
   }
 
   /** Publish a public reply to a comment (kept inside the comment thread). */

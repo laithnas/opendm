@@ -161,11 +161,28 @@ export async function advanceFollowGate(event: NormalizedEvent, connection: Soci
   // Stage 1 → 2. With verifyFollow on, ask Instagram whether they follow;
   // anyone not confirmed (including a failed lookup) gets the gate again.
   if (cfg.verifyFollow && provider.userFollowsAccount) {
-    const follows = await provider.userFollowsAccount(providerCtx(connection), run.contact.externalId);
+    // Instagram's follow status lags a fresh follow, so re-check once after a
+    // short pause, and never block the same person twice: if they've already
+    // been told "can't see your follow" in this run, the next tap unlocks.
+    let follows = await provider.userFollowsAccount(providerCtx(connection), run.contact.externalId);
+    if (follows !== true) {
+      await new Promise((r) => setTimeout(r, 3000));
+      follows = await provider.userFollowsAccount(providerCtx(connection), run.contact.externalId);
+    }
     if (follows !== null) {
       await prisma.contact.update({ where: { id: run.contactId }, data: { isFollower: follows } });
     }
-    if (follows !== true) {
+    const alreadyBlocked =
+      follows !== true &&
+      (await prisma.interaction.count({
+        where: {
+          contactId: run.contactId,
+          kind: "DM_OUTBOUND",
+          occurredAt: { gte: run.createdAt },
+          payload: { path: ["followGate"], equals: "not_following" },
+        },
+      })) > 0;
+    if (follows !== true && !alreadyBlocked) {
       const retryText = String(cfg.notFollowingText || DEFAULT_NOT_FOLLOWING_TEXT).slice(0, 1000);
       const token = newToken();
       const result = await provider.sendDm(
