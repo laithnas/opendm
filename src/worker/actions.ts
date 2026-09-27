@@ -42,17 +42,10 @@ export async function processActionJob(data: ActionJobData): Promise<void> {
           where: { contactId: execution.contactId ?? "", workspaceId: data.workspaceId },
           orderBy: { lastInboundAt: "desc" },
         });
-        const verdict = windowVerdictFor(contactConv?.lastInboundAt ?? null);
-        if (!verdict.allowed) {
-          await markStep(step.id, "SKIPPED", { reason: verdict.reason });
-          await finalizeExecution(execution.id);
-          return;
-        }
-        if (!connection) throw new Error("no connected social account");
-        const provider = getProviderForConnection(connection);
-        // A commenter who never messaged the account can only be reached with
-        // a comment private reply (recipient.comment_id), once per comment.
-        // Later steps and contacts already in a conversation use their user id.
+        // The first DM answering a comment always goes as a comment private
+        // reply (recipient.comment_id): Meta allows one per comment, and it
+        // works even when the contact's earlier conversation is past the
+        // messaging window. Later DMs in the execution use their user id.
         const trigger = (execution.triggerPayload ?? {}) as { kind?: string; commentId?: string | null };
         const alreadyDmed = await prisma.executionStep.count({
           where: {
@@ -63,7 +56,15 @@ export async function processActionJob(data: ActionJobData): Promise<void> {
           },
         });
         const privateReplyTo =
-          trigger.kind === "COMMENT" && trigger.commentId && !contactConv && alreadyDmed === 0 ? trigger.commentId : undefined;
+          trigger.kind === "COMMENT" && trigger.commentId && alreadyDmed === 0 ? trigger.commentId : undefined;
+        const verdict = windowVerdictFor(contactConv?.lastInboundAt ?? null);
+        if (!privateReplyTo && !verdict.allowed) {
+          await markStep(step.id, "SKIPPED", { reason: verdict.reason });
+          await finalizeExecution(execution.id);
+          return;
+        }
+        if (!connection) throw new Error("no connected social account");
+        const provider = getProviderForConnection(connection);
         const result = await provider.sendDm(providerCtx(connection), {
           externalId: execution.contact?.externalId ?? "",
           commentId: privateReplyTo,
@@ -103,12 +104,10 @@ export async function processActionJob(data: ActionJobData): Promise<void> {
         if (!connection) throw new Error("no connected social account");
         if (!execution.contactId) throw new Error("no contact for follow gate");
         if (!step.actionId) throw new Error("follow-gate action was deleted before this step ran");
-        const contactConv = await prisma.conversation.findFirst({
-          where: { contactId: execution.contactId, workspaceId: data.workspaceId },
-          orderBy: { lastInboundAt: "desc" },
-        });
         const trigger = (execution.triggerPayload ?? {}) as { kind?: string; commentId?: string | null };
-        const privateReplyCommentId = trigger.kind === "COMMENT" && trigger.commentId && !contactConv ? trigger.commentId : undefined;
+        // Always answer a comment with a private reply: it works even if an
+        // older conversation with this contact is outside the messaging window.
+        const privateReplyCommentId = trigger.kind === "COMMENT" && trigger.commentId ? trigger.commentId : undefined;
         const result = await startFollowGate({
           workspaceId: data.workspaceId,
           actionId: step.actionId,
