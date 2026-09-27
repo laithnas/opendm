@@ -6,6 +6,8 @@ import { getSocialProvider } from "@/modules/providers/registry";
 import { runAutomationsForEvent } from "@/modules/engine/execute";
 import type { NormalizedEvent } from "@/modules/providers/types";
 import { isGateButtonPayload, advanceFollowGate } from "@/modules/followgate/service";
+import { upsertContact } from "@/modules/contacts/service";
+import { upsertConversation, addInboundMessage } from "@/modules/inbox/service";
 
 // Ingest processor: normalize raw provider webhooks into engine events and
 // schedule executions. Fast, retry-safe, idempotent downstream.
@@ -68,6 +70,39 @@ export async function processIngestJob(job: IngestJobData): Promise<{ events: nu
     if (event.kind === "DM" && isGateButtonPayload(event.buttonPayload) && resolution.connection) {
       await advanceFollowGate(event, resolution.connection);
       continue;
+    }
+
+    // Every inbound DM / story reply lands in the inbox, whether or not an
+    // automation matches it. addInboundMessage is idempotent on the event id,
+    // so the automation path recording it again is harmless.
+    if ((event.kind === "DM" || event.kind === "STORY_REPLY") && resolution.connection) {
+      const contact = await upsertContact({
+        workspaceId: resolution.workspaceId,
+        provider: event.provider,
+        externalId: event.contact.externalId,
+        username: event.contact.username,
+        name: event.contact.name,
+        source: "DM",
+      });
+      const conversation = await upsertConversation({
+        workspaceId: resolution.workspaceId,
+        socialConnectionId: resolution.connection.id,
+        contactId: contact.id,
+        provider: event.provider,
+        externalId: event.conversationExternalId ?? `dm:${contact.externalId}`,
+        type: event.kind === "STORY_REPLY" ? "STORY_REPLY" : "DM",
+        inboundAt: new Date(event.occurredAt),
+      });
+      await addInboundMessage({
+        workspaceId: resolution.workspaceId,
+        conversationId: conversation.id,
+        contactId: contact.id,
+        socialConnectionId: resolution.connection.id,
+        provider: event.provider,
+        content: event.text,
+        externalId: event.providerEventId,
+        occurredAt: new Date(event.occurredAt),
+      });
     }
 
     const result = await runAutomationsForEvent({
