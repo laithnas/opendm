@@ -212,10 +212,27 @@ export async function createAndRunExecution(data: ExecuteJobData): Promise<void>
   // Conditions: any failure → observable SKIPPED execution (never re-runs
   // thanks to the idempotency key above).
   const triggerConfig = (automation.triggerConfig ?? {}) as Record<string, unknown>;
-  const verdict = evaluateConditions(
+  let verdict = evaluateConditions(
     { conditions: automation.conditions, triggerConfig },
     { event, isFollower: contact.isFollower },
   );
+
+  // One resource per person per post: a contact who already got a completed
+  // (or in-flight) run on this exact video does not re-trigger by commenting
+  // again — regardless of which automation or keyword matched the first time.
+  if (verdict.pass && data.event.kind === "COMMENT" && data.event.mediaId) {
+    const priorFire = await prisma.execution.findFirst({
+      where: {
+        workspaceId: data.workspaceId,
+        contactId: contact.id,
+        triggerType: "COMMENT",
+        status: { in: ["RUNNING", "COMPLETED", "PARTIALLY_COMPLETED"] },
+        triggerPayload: { path: ["mediaId"], equals: data.event.mediaId },
+      },
+      select: { id: true },
+    });
+    if (priorFire) verdict = { pass: false, reason: "already fired for this contact on this post" };
+  }
 
   const execution = await prisma.execution.create({
     data: {
