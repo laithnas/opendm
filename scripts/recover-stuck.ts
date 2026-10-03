@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { advanceFollowGate } from "@/modules/followgate/service";
 import { backfillComments } from "@/modules/automations/backfill";
 import { windowVerdictFor } from "@/modules/engine/execute";
+import { queues } from "@/lib/queue";
 
 const args = process.argv.slice(2);
 const SEND = args.includes("--send");
@@ -48,15 +49,19 @@ async function partA() {
       continue;
     }
     const conv = await prisma.conversation.findFirst({ where: { contactId: run.contactId }, orderBy: { lastInboundAt: "desc" } });
+    // Instagram enforces 24 hours for these messages, even though the app's
+    // general window setting is longer.
+    const hoursSince = conv?.lastInboundAt ? (Date.now() - conv.lastInboundAt.getTime()) / 3.6e6 : 0;
     const verdict = windowVerdictFor(conv?.lastInboundAt);
-    if (!verdict.allowed) {
+    if (!verdict.allowed || hoursSince > 23.5) {
       skippedWindow++;
       console.log("  skip (24h window closed):", who);
       continue;
     }
     console.log(SEND ? "  sending next step:" : "  would send next step:", who);
     if (!SEND) { advanced++; continue; }
-    await advanceFollowGate(
+    try {
+      await advanceFollowGate(
       {
         provider: "instagram",
         kind: "DM",
@@ -69,7 +74,11 @@ async function partA() {
         raw: { recovery: true },
       },
       run.socialConnection,
-    );
+      );
+    } catch (err) {
+      console.log("    failed:", String(err instanceof Error ? err.message : err).slice(0, 120));
+      continue;
+    }
     const after = await prisma.followGateRun.findUnique({ where: { id: run.id }, select: { step: true } });
     if (after && after.step > run.step) advanced++;
     else console.log("    did not advance (check worker log)");
@@ -95,16 +104,29 @@ async function partB() {
     const media = (a?.triggerConfig as { postRef?: string } | null)?.postRef ?? undefined;
     console.log(`  ${a?.name} (${a?.status}): ${ids.length} failed`);
     if (!SEND || a?.status !== "ACTIVE") continue;
-    // Retire the failed runs so the backfill treats those comments as new.
+    // Retire the failed runs so the backfill treats those comments as new, and
+    // drop their old queue jobs: the queue dedupes by job id for 30 days, so a
+    // re-queue with the same id would otherwise be silently ignored.
     for (const id of ids) {
       const ex = await prisma.execution.findUnique({ where: { id }, select: { providerEventId: true } });
+      const key = ex?.providerEventId ?? "";
       await prisma.execution.update({
         where: { id },
-        data: { status: "FAILED" as never, providerEventId: `${ex?.providerEventId}:retired-${Date.now()}` },
+        data: { status: "FAILED" as never, providerEventId: `${key}:retired-${Date.now()}` },
       });
+      await clearExecuteJob(key, automationId);
     }
     const r = await backfillComments({ workspaceId, automationId, dryRun: false, mediaId: media });
     console.log("    re-queued:", JSON.stringify({ ...r, posts: undefined }));
+  }
+}
+
+async function clearExecuteJob(key: string, automationId: string) {
+  if (!key) return;
+  const commentId = key.split(":")[0];
+  for (const [q, id] of [[queues.execute, `exec:${key}`], [queues.ingest, `backfill-${automationId}-${commentId}`]] as const) {
+    const job = await q.getJob(id);
+    if (job) await job.remove().catch(() => undefined);
   }
 }
 
