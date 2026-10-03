@@ -10,8 +10,22 @@ export function isDeadTokenCode(code: string | undefined | null): boolean {
   return Boolean(code && DEAD_TOKEN_CODES.has(code));
 }
 
+const pending = new Set<Promise<unknown>>();
+
+/** Wait for any in-flight alerts (call before a short-lived script exits). */
+export async function flushAlerts(): Promise<void> {
+  await Promise.allSettled([...pending]);
+}
+
 /** Send a message to Laith's Telegram. Never throws. */
-export async function sendAlert(text: string): Promise<void> {
+export function sendAlert(text: string): Promise<void> {
+  const p = sendAlertNow(text);
+  pending.add(p);
+  void p.finally(() => pending.delete(p));
+  return p;
+}
+
+async function sendAlertNow(text: string): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
     log.warn("alert not sent: Telegram not configured", { text: text.slice(0, 120) });
     return;
@@ -33,7 +47,14 @@ export async function sendAlert(text: string): Promise<void> {
  * connections, and we want every comment and tap kept so it can be replayed
  * after the reconnect. Reconnecting clears lastError.
  */
-export async function flagDeadToken(connectionId: string, message: string): Promise<void> {
+export function flagDeadToken(connectionId: string, message: string): Promise<void> {
+  const p = flagDeadTokenNow(connectionId, message);
+  pending.add(p);
+  void p.finally(() => pending.delete(p));
+  return p;
+}
+
+async function flagDeadTokenNow(connectionId: string, message: string): Promise<void> {
   try {
     const first = await prisma.socialConnection.updateMany({
       where: { id: connectionId, lastError: null },

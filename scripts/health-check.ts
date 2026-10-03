@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { log } from "@/lib/logger";
 import { getProviderForConnection } from "@/modules/providers/registry";
 import { providerCtx } from "@/modules/engine/execute";
-import { flagDeadToken, isDeadTokenCode, sendAlert } from "@/modules/health/alerts";
+import { flagDeadToken, flushAlerts, isDeadTokenCode, sendAlert } from "@/modules/health/alerts";
 
 const REMIND_MS = 3 * 60 * 60 * 1000;
 
@@ -39,6 +39,7 @@ async function main() {
 main()
   .catch((e) => log.error("health check crashed", { error: String(e).slice(0, 300) }))
   .finally(async () => {
+    await flushAlerts();
     await prisma.$disconnect();
     process.exit(0);
   });
