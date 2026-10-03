@@ -220,35 +220,43 @@ export async function createAndRunExecution(data: ExecuteJobData): Promise<void>
   // One resource per person per post: a contact who already got a completed
   // (or in-flight) run on this exact video does not re-trigger by commenting
   // again — regardless of which automation or keyword matched the first time.
-  if (verdict.pass && data.event.kind === "COMMENT" && data.event.mediaId) {
-    const priorFire = await prisma.execution.findFirst({
-      where: {
+  // The check and the execution insert run under a per-(contact, post)
+  // advisory lock, so two comments arriving at once can't both slip through
+  // and send a second public reply or DM.
+  const postMediaId = data.event.kind === "COMMENT" ? data.event.mediaId ?? null : null;
+  const onePerPost = verdict.pass && postMediaId !== null;
+  const execution = await prisma.$transaction(async (tx) => {
+    if (onePerPost) {
+      const lockKey = `fire:${data.workspaceId}:${contact.id}:${postMediaId}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+      const priorFire = await tx.execution.findFirst({
+        where: {
+          workspaceId: data.workspaceId,
+          contactId: contact.id,
+          triggerType: "COMMENT",
+          status: { in: ["RUNNING", "COMPLETED", "PARTIALLY_COMPLETED"] },
+          triggerPayload: { path: ["mediaId"], equals: postMediaId as string },
+        },
+        select: { id: true },
+      });
+      if (priorFire) verdict = { pass: false, reason: "already fired for this contact on this post" };
+    }
+    return tx.execution.create({
+      data: {
         workspaceId: data.workspaceId,
+        automationId: automation.id,
         contactId: contact.id,
-        triggerType: "COMMENT",
-        status: { in: ["RUNNING", "COMPLETED", "PARTIALLY_COMPLETED"] },
-        triggerPayload: { path: ["mediaId"], equals: data.event.mediaId },
+        socialConnectionId: connection?.id ?? null,
+        provider: providerEnum(data.event.provider),
+        providerEventId: idempotencyKey,
+        triggerType: data.event.kind,
+        triggerPayload: data.event as unknown as Prisma.InputJsonValue,
+        status: verdict.pass ? "RUNNING" : "SKIPPED",
+        startedAt: verdict.pass ? new Date() : null,
+        completedAt: verdict.pass ? null : new Date(),
+        error: verdict.pass ? null : (verdict.reason ?? "conditions not met"),
       },
-      select: { id: true },
     });
-    if (priorFire) verdict = { pass: false, reason: "already fired for this contact on this post" };
-  }
-
-  const execution = await prisma.execution.create({
-    data: {
-      workspaceId: data.workspaceId,
-      automationId: automation.id,
-      contactId: contact.id,
-      socialConnectionId: connection?.id ?? null,
-      provider: providerEnum(data.event.provider),
-      providerEventId: idempotencyKey,
-      triggerType: data.event.kind,
-      triggerPayload: data.event as unknown as Prisma.InputJsonValue,
-      status: verdict.pass ? "RUNNING" : "SKIPPED",
-      startedAt: verdict.pass ? new Date() : null,
-      completedAt: verdict.pass ? null : new Date(),
-      error: verdict.pass ? null : (verdict.reason ?? "conditions not met"),
-    },
   });
 
   // Record the trigger interaction + conversation state for the CRM/inbox.
