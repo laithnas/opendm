@@ -1,3 +1,4 @@
+import { flagDeadToken, isDeadTokenCode } from "@/modules/health/alerts";
 import { env } from "@/lib/env";
 import { ProviderError } from "@/lib/errors";
 import { httpFetch } from "@/lib/http";
@@ -217,7 +218,7 @@ function toProviderError(status: number, body: string): ProviderError {
 async function graphGet<T>(ctx: ProviderCtx, path: string, fields: string[]): Promise<T> {
   const url = `${GRAPH_BASE}/${ctx.apiVersion}/${path}?fields=${fields.join(",")}&access_token=${encodeURIComponent(ctx.accessToken)}`;
   const res = await httpFetch(url, { method: "GET" }, { timeoutMs: 15000 });
-  return handleGraphResponse<T>(res.status, res.body, url);
+  return handleGraphResponse<T>(res.status, res.body, url, ctx);
 }
 
 /** GET a paged edge, following `paging.next` until `limit` rows are collected. */
@@ -227,7 +228,7 @@ async function graphList<T>(ctx: ProviderCtx, path: string, fields: string[], li
     `${GRAPH_BASE}/${ctx.apiVersion}/${path}?fields=${fields.join(",")}&limit=${Math.min(limit, 50)}&access_token=${encodeURIComponent(ctx.accessToken)}`;
   while (url && out.length < limit) {
     const res = await httpFetch(url, { method: "GET" }, { timeoutMs: 15000 });
-    const page: { data?: T[]; paging?: { next?: string } } = handleGraphResponse(res.status, res.body, url);
+    const page: { data?: T[]; paging?: { next?: string } } = handleGraphResponse(res.status, res.body, url, ctx);
     out.push(...(page.data ?? []));
     url = page.paging?.next ?? null;
   }
@@ -248,11 +249,15 @@ async function graphPost<T>(ctx: ProviderCtx, path: string, body: unknown): Prom
     },
     { timeoutMs: 15000 },
   );
-  return handleGraphResponse<T>(res.status, res.body, url);
+  return handleGraphResponse<T>(res.status, res.body, url, ctx);
 }
 
-function handleGraphResponse<T>(status: number, body: string, /* url */ _url: string): T {
-  if (status >= 400) throw toProviderError(status, body);
+function handleGraphResponse<T>(status: number, body: string, /* url */ _url: string, ctx?: ProviderCtx): T {
+  if (status >= 400) {
+    const err = toProviderError(status, body);
+    if (ctx?.connection?.id && isDeadTokenCode(err.providerCode)) void flagDeadToken(ctx.connection.id, err.message);
+    throw err;
+  }
   return JSON.parse(body) as T;
 }
 

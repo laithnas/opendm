@@ -14,6 +14,8 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().min(16),
   TOKEN_REFRESH_THRESHOLD_SECONDS: z.coerce.number().int().positive().default(3600),
   RESEND_API_KEY: z.string().optional().default(""),
+  TELEGRAM_BOT_TOKEN: z.string().optional().default(""),
+  TELEGRAM_CHAT_ID: z.string().optional().default(""),
   EMAIL_FROM: z.string().default("OpenDM <no-reply@leonyx-ai.com>"),
   META_APP_ID: z.string().optional().default(""),
   META_APP_SECRET: z.string().optional().default(""),
