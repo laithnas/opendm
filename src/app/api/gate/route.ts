@@ -16,12 +16,12 @@ export async function POST(req: NextRequest) {
   if (submitted !== password) {
     url.pathname = "/gate";
     url.search = `?next=${encodeURIComponent(next)}&error=1`;
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(url, 303);
   }
 
   url.pathname = next.startsWith("/") ? next : "/";
   url.search = "";
-  const res = NextResponse.redirect(url);
+  const res = NextResponse.redirect(url, 303); // 303 so the browser follows with GET (307 re-POSTs and pages answer 405)
   res.cookies.set("leonyx_gate", await hashGateToken(password), {
     httpOnly: true,
     secure: true,
